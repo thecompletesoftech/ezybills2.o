@@ -1,17 +1,13 @@
 #!/usr/bin/env php
 <?php
 
+use Symfony\Component\Console\Input\ArgvInput;
+
 define('LARAVEL_START', microtime(true));
 
-if (file_exists($autoload = __DIR__.'/vendor/autoload.php')) {
-    require $autoload;
-} else {
-    fwrite(STDERR, "Composer dependencies are not installed. Run: composer install\n");
-    exit(1);
-}
+require __DIR__.'/vendor/autoload.php';
 
-$app = require_once __DIR__.'/bootstrap/app.php';
+$status = (require_once __DIR__.'/bootstrap/app.php')
+    ->handleCommand(new ArgvInput);
 
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
-
-exit($kernel->handle(new Symfony\Component\Console\Input\ArgvInput, new Symfony\Component\Console\Output\ConsoleOutput));
+exit($status);

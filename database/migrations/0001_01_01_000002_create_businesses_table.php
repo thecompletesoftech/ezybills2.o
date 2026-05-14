@@ -24,14 +24,22 @@ return new class extends Migration
             $table->string('upi_id')->nullable();
             $table->string('qr_code_url')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->foreignId('subscription_plan_id')->nullable()->constrained('plans')->onDelete('set null');
+            $table->unsignedBigInteger('subscription_plan_id')->nullable();
             $table->timestamp('subscription_expires_at')->nullable();
             $table->timestamps();
+        });
+
+        // Add the FK from users.business_id now that businesses table exists
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreign('business_id')->references('id')->on('businesses')->onDelete('cascade');
         });
     }
 
     public function down(): void
     {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['business_id']);
+        });
         Schema::dropIfExists('businesses');
     }
 };

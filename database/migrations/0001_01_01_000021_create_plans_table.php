@@ -24,10 +24,18 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
+
+        // Add the FK from businesses.subscription_plan_id now that plans table exists
+        Schema::table('businesses', function (Blueprint $table) {
+            $table->foreign('subscription_plan_id')->references('id')->on('plans')->onDelete('set null');
+        });
     }
 
     public function down(): void
     {
+        Schema::table('businesses', function (Blueprint $table) {
+            $table->dropForeign(['subscription_plan_id']);
+        });
         Schema::dropIfExists('plans');
     }
 };

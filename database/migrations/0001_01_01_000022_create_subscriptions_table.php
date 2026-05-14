@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('business_id')->unique()->constrained()->onDelete('cascade');
             $table->foreignId('plan_id')->constrained()->onDelete('restrict');
-            $table->timestamp('start_date');
-            $table->timestamp('end_date');
+            $table->timestamp('start_date')->useCurrent();
+            $table->timestamp('end_date')->useCurrent();
             $table->timestamp('renewal_date')->nullable();
             $table->enum('status', ['active', 'expired', 'suspended', 'cancelled'])->default('active');
             $table->string('payment_mode')->nullable();

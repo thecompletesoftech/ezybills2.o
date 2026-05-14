@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->enum('role', ['super_admin', 'owner', 'manager', 'cashier', 'accountant'])->default('cashier');
-            $table->foreignId('business_id')->nullable()->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('business_id')->nullable();
             $table->boolean('is_active')->default(true);
             $table->string('otp')->nullable();
             $table->timestamp('otp_expires_at')->nullable();

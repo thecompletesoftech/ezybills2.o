@@ -86,7 +86,7 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/expense', [Api\ExpenseReportController::class, 'expense']);
 
         // Restaurant Features (if enabled)
-        Route::middleware('business.type:restaurant,cafe,food_cart').group(function () {
+        Route::middleware('business.type:restaurant,cafe,food_cart')->group(function () {
             Route::apiResource('tables', Api\TableController::class);
             Route::post('tables/{table}/merge', [Api\TableController::class, 'merge']);
             Route::post('tables/{table}/shift', [Api\TableController::class, 'shift']);
