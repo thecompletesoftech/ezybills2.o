@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezybills-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=ezybills
+      - DB_USERNAME=ezybills
+      - DB_PASSWORD=secret
+    depends_on:
+      - db
+      - redis
+    networks:
+      - ezybills-network
+
+  db:
+    image: mysql:8.0
+    container_name: ezybills-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ezybills
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: secret
+      MYSQL_USER: ezybills
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - ezybills-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ezybills-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - ezybills-network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: ezybills-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: ezybills
+      PMA_PASSWORD: secret
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    networks:
+      - ezybills-network
+
+volumes:
+  dbdata:
+    driver: local
+
+networks:
+  ezybills-network:
+    driver: bridge
