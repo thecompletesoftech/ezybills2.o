@@ -9,6 +9,8 @@ class Unit extends Model
 {
     use HasFactory;
 
+    protected $appends = ['short_name'];
+
     protected $fillable = [
         'business_id',
         'name',
@@ -19,6 +21,11 @@ class Unit extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function getShortNameAttribute(): string
+    {
+        return $this->code ?? $this->name;
+    }
 
     public function business()
     {

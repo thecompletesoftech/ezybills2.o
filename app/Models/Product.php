@@ -9,6 +9,8 @@ class Product extends Model
 {
     use HasFactory;
 
+    protected $appends = ['selling_price', 'unit_id', 'unit', 'gst_rate', 'stock_quantity'];
+
     protected $fillable = [
         'business_id',
         'name',
@@ -40,6 +42,34 @@ class Product extends Model
         'wholesale_price' => 'decimal:2',
         'mrp' => 'decimal:2',
     ];
+
+    public function getSellingPriceAttribute(): float
+    {
+        return (float) $this->sale_price;
+    }
+
+    public function getUnitIdAttribute(): ?int
+    {
+        return $this->primary_unit_id;
+    }
+
+    public function getUnitAttribute(): ?Unit
+    {
+        return $this->primaryUnit;
+    }
+
+    public function getGstRateAttribute(): float
+    {
+        return (float) $this->gst_percentage;
+    }
+
+    public function getStockQuantityAttribute(): float
+    {
+        if ($this->relationLoaded('stock') && $this->stock !== null) {
+            return (float) $this->stock->current_stock;
+        }
+        return 0.0;
+    }
 
     public function business()
     {

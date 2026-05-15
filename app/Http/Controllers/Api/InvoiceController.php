@@ -17,10 +17,29 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $invoices = Invoice::where('business_id', auth()->user()->business_id)
-            ->with('customer', 'items', 'payments')
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $query = Invoice::where('business_id', auth()->user()->business_id)
+            ->with('customer', 'payments')
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(fn($q) => $q->where('invoice_number', 'like', "%$s%")
+                ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', "%$s%")));
+        }
+
+        if ($request->filled('status')) {
+            $statusMap = [
+                'paid' => ['payment_status' => 'paid'],
+                'partial' => ['payment_status' => 'partially_paid'],
+                'unpaid' => ['payment_status' => 'pending'],
+                'cancelled' => ['invoice_status' => 'cancelled'],
+            ];
+            if (isset($statusMap[$request->status])) {
+                $query->where($statusMap[$request->status]);
+            }
+        }
+
+        $invoices = $query->paginate($request->integer('per_page', 20));
         return $this->paginated($invoices, 'Invoices retrieved');
     }
 
@@ -30,8 +49,11 @@ class InvoiceController extends Controller
             'customer_id' => 'nullable|exists:customers,id',
             'invoice_type' => 'sometimes|in:gst_invoice,retail_invoice,estimate,sale_return,purchase_invoice,purchase_return',
             'discount_amount' => 'nullable|numeric',
+            'tax_amount' => 'nullable|numeric',
             'round_off' => 'nullable|numeric',
             'notes' => 'nullable|string',
+            'payment_status' => 'nullable|in:paid,hold,pending',
+            'payment_mode' => 'nullable|in:cash,card,upi,credit,mixed',
             'items' => 'required|array',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric',

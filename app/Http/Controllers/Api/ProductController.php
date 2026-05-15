@@ -10,14 +10,45 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $products = Product::where('business_id', auth()->user()->business_id)
-            ->with('category', 'brand', 'primaryUnit')
-            ->paginate(20);
+        $query = Product::where('business_id', auth()->user()->business_id)
+            ->with('category', 'brand', 'primaryUnit', 'stock');
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(fn($q) => $q->where('name', 'like', "%$s%")
+                ->orWhere('sku', 'like', "%$s%")
+                ->orWhere('barcode', 'like', "%$s%"));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        $perPage = min((int) ($request->per_page ?? 20), 100);
+        $products = $query->paginate($perPage);
         return $this->paginated($products, 'Products retrieved');
+    }
+
+    private function normalizeProductData(array $data): array
+    {
+        if (isset($data['selling_price']) && !isset($data['sale_price'])) {
+            $data['sale_price'] = $data['selling_price'];
+        }
+        if (isset($data['unit_id']) && !isset($data['primary_unit_id'])) {
+            $data['primary_unit_id'] = $data['unit_id'];
+        }
+        if (isset($data['gst_rate']) && !isset($data['gst_percentage'])) {
+            $data['gst_percentage'] = $data['gst_rate'];
+        }
+        unset($data['selling_price'], $data['unit_id'], $data['gst_rate'], $data['stock_quantity']);
+        return $data;
     }
 
     public function store(Request $request)
     {
+        $data = $this->normalizeProductData($request->all());
+        $request->merge($data);
+
         $validated = $request->validate([
             'name' => 'required|string',
             'product_code' => 'nullable|string',
@@ -34,6 +65,7 @@ class ProductController extends Controller
             'mrp' => 'nullable|numeric',
             'primary_unit_id' => 'required|exists:units,id',
             'secondary_unit_id' => 'nullable|exists:units,id',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $product = Product::create([
@@ -41,6 +73,7 @@ class ProductController extends Controller
             'business_id' => auth()->user()->business_id,
         ]);
 
+        $product->load('category', 'brand', 'primaryUnit', 'stock');
         return $this->success($product, 'Product created', 201);
     }
 
@@ -52,6 +85,9 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        $data = $this->normalizeProductData($request->all());
+        $request->merge($data);
+
         $validated = $request->validate([
             'name' => 'sometimes|string',
             'product_code' => 'nullable|string',
@@ -64,9 +100,12 @@ class ProductController extends Controller
             'sale_price' => 'nullable|numeric',
             'wholesale_price' => 'nullable|numeric',
             'mrp' => 'nullable|numeric',
+            'primary_unit_id' => 'nullable|exists:units,id',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $product->update($validated);
+        $product->load('category', 'brand', 'primaryUnit', 'stock');
         return $this->success($product, 'Product updated');
     }
 

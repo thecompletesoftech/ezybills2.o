@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+let redirecting401 = false;
+
 const api = axios.create({
   baseURL: 'http://localhost:8000/api/v1',
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -29,7 +31,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    if (
+      error.response?.status === 401 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/login') &&
+      !redirecting401
+    ) {
+      redirecting401 = true;
       localStorage.removeItem('auth_token');
       window.location.href = '/login';
     }

@@ -70,12 +70,26 @@ class BillingService
 
         $totalAmount = $subtotal - ($data['discount_amount'] ?? 0) + $taxAmount + ($data['round_off'] ?? 0);
 
+        $invoiceStatus = ($data['payment_status'] ?? '') === 'hold' ? 'held' : 'confirmed';
+
         $invoice->update([
             'subtotal' => $subtotal,
             'tax_amount' => $taxAmount,
             'total_amount' => $totalAmount,
-            'invoice_status' => 'confirmed',
+            'invoice_status' => $invoiceStatus,
         ]);
+
+        // Auto-record payment if paid at POS
+        if (($data['payment_status'] ?? '') === 'paid' && $totalAmount > 0) {
+            Payment::create([
+                'invoice_id' => $invoice->id,
+                'business_id' => $businessId,
+                'amount' => $totalAmount,
+                'payment_method' => $data['payment_mode'] ?? 'cash',
+                'payment_date' => now(),
+            ]);
+            $invoice->update(['payment_status' => 'paid']);
+        }
 
         return $invoice;
     }
