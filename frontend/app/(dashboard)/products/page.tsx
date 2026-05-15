@@ -26,6 +26,7 @@ interface ProductFormData {
   selling_price: string;
   purchase_price: string;
   stock_quantity: string;
+  gst_rate: string;
   description: string;
   is_active: boolean;
 }
@@ -38,6 +39,7 @@ const emptyForm: ProductFormData = {
   selling_price: '',
   purchase_price: '',
   stock_quantity: '',
+  gst_rate: '0',
   description: '',
   is_active: true,
 };
@@ -51,6 +53,7 @@ function productToForm(p: Product): ProductFormData {
     selling_price: String(p.selling_price),
     purchase_price: String(p.purchase_price),
     stock_quantity: String(p.stock_quantity),
+    gst_rate: String(p.gst_rate ?? 0),
     description: p.description ?? '',
     is_active: p.is_active,
   };
@@ -100,7 +103,8 @@ export default function ProductsPage() {
         unit_id: formData.unit_id ? parseInt(formData.unit_id) : null,
         selling_price: parseFloat(formData.selling_price),
         purchase_price: parseFloat(formData.purchase_price) || 0,
-        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        stock_quantity: editingProduct ? undefined : (parseInt(formData.stock_quantity) || 0),
+        gst_rate: parseFloat(formData.gst_rate) || 0,
         description: formData.description || null,
         is_active: formData.is_active,
       };
@@ -340,8 +344,30 @@ export default function ProductsPage() {
               <Input label="Cost / Purchase Price" type="number" step="0.01" min="0" placeholder="0.00" {...field('purchase_price')} />
             </div>
 
-            <div>
-              <Input label="Stock Quantity" type="number" min="0" placeholder="0" {...field('stock_quantity')} />
+            {!editingProduct ? (
+              <div>
+                <Input label="Opening Stock Qty" type="number" min="0" placeholder="0" {...field('stock_quantity')} />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Current Stock</label>
+                <div className="flex items-center px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+                  {editingProduct.stock_quantity} units — use Inventory &gt; Add Stock to update
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">GST Rate</label>
+              <select
+                value={form.gst_rate}
+                onChange={(e) => setForm((f) => ({ ...f, gst_rate: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]"
+              >
+                {[0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28].map((r) => (
+                  <option key={r} value={r}>{r}%{r === 0 ? ' (Exempt)' : ''}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex flex-col gap-1">

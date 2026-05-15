@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Product;
+use App\Models\Stock;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -68,10 +70,29 @@ class ProductController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $product = Product::create([
-            ...$validated,
-            'business_id' => auth()->user()->business_id,
+        $businessId = auth()->user()->business_id;
+        $product = Product::create([...$validated, 'business_id' => $businessId]);
+
+        // Create stock record with opening stock
+        $openingQty = max(0, (float) ($request->stock_quantity ?? 0));
+        $stock = Stock::create([
+            'product_id'    => $product->id,
+            'business_id'   => $businessId,
+            'opening_stock' => $openingQty,
+            'current_stock' => $openingQty,
         ]);
+
+        if ($openingQty > 0) {
+            StockMovement::create([
+                'stock_id'       => $stock->id,
+                'product_id'     => $product->id,
+                'business_id'    => $businessId,
+                'movement_type'  => 'opening',
+                'quantity'       => $openingQty,
+                'reference_type' => 'product',
+                'reference_id'   => $product->id,
+            ]);
+        }
 
         $product->load('category', 'brand', 'primaryUnit', 'stock');
         return $this->success($product, 'Product created', 201);

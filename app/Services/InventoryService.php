@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\Stock;
 use App\Models\StockMovement;
 
@@ -27,6 +28,42 @@ class InventoryService
         ]);
 
         return $stock;
+    }
+
+    /**
+     * Add stock and recalculate Weighted Average Cost on the product.
+     * WAC = (old_stock × old_price + new_qty × new_price) / (old_stock + new_qty)
+     */
+    public function addStockWithWAC($productId, $businessId, $quantity, $unitCost, $type = 'purchase', $referenceType = null, $referenceId = null): Stock
+    {
+        $stock = Stock::firstOrCreate(
+            ['product_id' => $productId, 'business_id' => $businessId],
+            ['opening_stock' => 0, 'current_stock' => 0]
+        );
+
+        $product  = Product::find($productId);
+        $oldQty   = (float) $stock->current_stock;
+        $oldCost  = (float) $product->purchase_price;
+        $newTotal = $oldQty + $quantity;
+
+        $wac = $newTotal > 0
+            ? (($oldQty * $oldCost) + ($quantity * $unitCost)) / $newTotal
+            : $unitCost;
+
+        $stock->increment('current_stock', $quantity);
+        $product->update(['purchase_price' => round($wac, 4)]);
+
+        StockMovement::create([
+            'stock_id'       => $stock->id,
+            'product_id'     => $productId,
+            'business_id'    => $businessId,
+            'movement_type'  => $type,
+            'quantity'       => $quantity,
+            'reference_type' => $referenceType,
+            'reference_id'   => $referenceId,
+        ]);
+
+        return $stock->fresh();
     }
 
     public function removeStock($productId, $businessId, $quantity, $type = 'stock_out', $referenceType = null, $referenceId = null)

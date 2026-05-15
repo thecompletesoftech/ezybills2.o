@@ -45,6 +45,7 @@ Route::prefix('v1')->group(function () {
         // Inventory/Stock
         Route::apiResource('stock', Api\StockController::class);
         Route::post('stock/{stock}/adjust', [Api\StockController::class, 'adjust']);
+        Route::post('stock/add', [Api\StockController::class, 'addStock']);
         Route::get('stock/reports/summary', [Api\StockReportController::class, 'summary']);
         Route::get('stock/reports/ledger', [Api\StockReportController::class, 'ledger']);
         Route::get('stock/alerts', [Api\StockAlertController::class, 'index']);

@@ -46,4 +46,32 @@ class StockController extends Controller
             return $this->error($e->getMessage(), 400);
         }
     }
+
+    /**
+     * Quick stock-in: add quantity + purchase price → triggers WAC recalculation.
+     * No supplier/PO required.
+     */
+    public function addStock(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id'   => 'required|exists:products,id',
+            'quantity'     => 'required|numeric|min:0.01',
+            'unit_cost'    => 'required|numeric|min:0',
+        ]);
+
+        $businessId = auth()->user()->business_id;
+        $stock = $this->inventoryService->addStockWithWAC(
+            $validated['product_id'],
+            $businessId,
+            $validated['quantity'],
+            $validated['unit_cost'],
+            'stock_in'
+        );
+
+        $stock->load('product');
+        return $this->success([
+            'current_stock'  => (float) $stock->current_stock,
+            'purchase_price' => (float) $stock->product->purchase_price,
+        ], 'Stock added');
+    }
 }

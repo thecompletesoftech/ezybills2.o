@@ -27,6 +27,7 @@ interface CartItem {
   price: number;
   quantity: number;
   unit: string;
+  gst_rate: number;
 }
 
 type PaymentMode = 'cash' | 'card' | 'upi' | 'split';
@@ -53,7 +54,6 @@ export default function POSPage() {
 
   // --- Totals ---
   const [discountPct, setDiscountPct] = useState(0);
-  const [taxPct, setTaxPct] = useState(0);
 
   // --- Payment ---
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('cash');
@@ -126,6 +126,7 @@ export default function POSPage() {
           price: product.selling_price,
           quantity: 1,
           unit: product.unit?.short_name ?? 'pcs',
+          gst_rate: product.gst_rate ?? 0,
         },
       ];
     });
@@ -148,11 +149,16 @@ export default function POSPage() {
     setCart((prev) => prev.filter((item) => item.product_id !== product_id));
   };
 
-  // --- Totals calculation ---
+  // --- Totals calculation (GST auto-calculated per product) ---
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discountAmount = subtotal * (discountPct / 100);
   const afterDiscount = subtotal - discountAmount;
-  const taxAmount = afterDiscount * (taxPct / 100);
+  // Each item's GST is applied to its after-discount share
+  const taxAmount = cart.reduce((sum, item) => {
+    const itemBase = item.price * item.quantity;
+    const itemDiscount = itemBase * (discountPct / 100);
+    return sum + (itemBase - itemDiscount) * (item.gst_rate / 100);
+  }, 0);
   const grandTotal = afterDiscount + taxAmount;
   const changeAmount = parseFloat(cashReceived || '0') - grandTotal;
 
@@ -169,7 +175,8 @@ export default function POSPage() {
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.price,
-          total: item.price * item.quantity,
+          discount_percentage: discountPct,
+          // BillingService calculates per-item tax from product.gst_percentage
         })),
       };
       const res = await api.post('/invoices', payload);
@@ -466,21 +473,12 @@ export default function POSPage() {
                   <span className="text-sm text-red-500 w-20 text-right">-{formatCurrency(discountAmount)}</span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-gray-500 w-20 flex-shrink-0">Tax %</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={taxPct || ''}
-                  onChange={(e) => setTaxPct(parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]"
-                />
-                {taxPct > 0 && (
-                  <span className="text-sm text-gray-500 w-20 text-right">+{formatCurrency(taxAmount)}</span>
-                )}
-              </div>
+              {taxAmount > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">GST (auto)</span>
+                  <span className="text-gray-600">+{formatCurrency(taxAmount)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between pt-1 border-t border-gray-200">
                 <span className="text-base font-bold text-gray-900">Grand Total</span>
                 <span className="text-base font-bold text-[#0066CC]">{formatCurrency(grandTotal)}</span>
