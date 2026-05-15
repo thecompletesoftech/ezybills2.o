@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Eye, FileText } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, Eye, FileText, RotateCcw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import type { Invoice, PaginatedResponse } from '@/lib/types';
+import type { Invoice, InvoiceItem, PaginatedResponse } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,12 +46,20 @@ function statusBadgeVariant(status: string): 'green' | 'yellow' | 'red' | 'gray'
   }
 }
 
+interface ReturnQtys {
+  [productId: number]: string;
+}
+
 export default function InvoicesPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnQtys, setReturnQtys] = useState<ReturnQtys>({});
+  const [returnReason, setReturnReason] = useState('');
 
   const { data, isLoading } = useQuery<PaginatedResponse<Invoice>>({
     queryKey: ['invoices', { page, search, status: statusFilter }],
@@ -73,9 +82,45 @@ export default function InvoicesPage() {
     enabled: detailModalOpen && detailInvoice !== null,
   });
 
+  const returnMutation = useMutation({
+    mutationFn: async () => {
+      if (!invoiceDetail) return;
+      const items = (invoiceDetail.items ?? [])
+        .filter((item) => parseFloat(returnQtys[item.product_id] ?? '0') > 0)
+        .map((item) => ({
+          product_id: item.product_id,
+          quantity: parseFloat(returnQtys[item.product_id]),
+        }));
+      if (items.length === 0) throw new Error('Select at least one item to return');
+      return api.post(`/invoices/${invoiceDetail.id}/return`, { items, reason: returnReason || undefined });
+    },
+    onSuccess: (res) => {
+      const retNum = (res?.data as { invoice_number?: string })?.invoice_number ?? '';
+      toast.success(`Return ${retNum} created — stock restored`);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice-detail', invoiceDetail?.id] });
+      queryClient.invalidateQueries({ queryKey: ['inventory-products'] });
+      setReturnModalOpen(false);
+      setReturnQtys({});
+      setReturnReason('');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? 'Failed to create return');
+    },
+  });
+
   const openDetail = (invoice: Invoice) => {
     setDetailInvoice(invoice);
     setDetailModalOpen(true);
+  };
+
+  const openReturn = (items: InvoiceItem[]) => {
+    const qtys: ReturnQtys = {};
+    items.forEach((item) => { qtys[item.product_id] = String(item.quantity); });
+    setReturnQtys(qtys);
+    setReturnReason('');
+    setReturnModalOpen(true);
   };
 
   const invoices = data?.data ?? [];
@@ -146,6 +191,9 @@ export default function InvoicesPage() {
                     <TableRow key={invoice.id}>
                       <TableCell className="font-mono font-medium text-[#0066CC]">
                         {invoice.invoice_number}
+                        {invoice.invoice_type === 'sale_return' && (
+                          <span className="ml-1.5 text-[10px] bg-orange-100 text-orange-700 rounded px-1 py-0.5 font-sans font-medium">RETURN</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-medium">
                         {invoice.customer?.name ?? <span className="text-gray-400 font-normal">Walk-in</span>}
@@ -298,18 +346,100 @@ export default function InvoicesPage() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
-                Print Invoice
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => { setDetailModalOpen(false); setDetailInvoice(null); }}>
-                Close
-              </Button>
+            <div className="flex justify-between gap-2 pt-2">
+              <div>
+                {invoiceDetail.invoice_type !== 'sale_return' && invoiceDetail.status !== 'cancelled' && invoiceDetail.items && invoiceDetail.items.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openReturn(invoiceDetail.items!)}
+                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                  >
+                    <RotateCcw size={14} className="mr-1" /> Process Return
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  Print Invoice
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => { setDetailModalOpen(false); setDetailInvoice(null); }}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
           <p className="text-center text-gray-400 py-8 text-sm">Failed to load invoice details.</p>
         )}
+      </Modal>
+
+      {/* Return Modal */}
+      <Modal
+        open={returnModalOpen}
+        onClose={() => { setReturnModalOpen(false); setReturnQtys({}); setReturnReason(''); }}
+        title={`Process Return — ${invoiceDetail?.invoice_number ?? ''}`}
+        className="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-700">
+            Stock will be restored. Customer due (if any) will be reduced by the return amount.
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Return Quantities</h4>
+            <div className="space-y-2">
+              {(invoiceDetail?.items ?? []).map((item) => (
+                <div key={item.product_id} className="flex items-center gap-3">
+                  <div className="flex-1 text-sm text-gray-800">
+                    {item.product?.name ?? `Product #${item.product_id}`}
+                    <span className="text-gray-400 ml-1 text-xs">({item.quantity} sold)</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max={item.quantity}
+                    step="1"
+                    value={returnQtys[item.product_id] ?? '0'}
+                    onChange={(e) => setReturnQtys((q) => ({ ...q, [item.product_id]: e.target.value }))}
+                    className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Reason (optional)</label>
+            <input
+              type="text"
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              placeholder="e.g. Damaged product, Wrong item..."
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setReturnModalOpen(false); setReturnQtys({}); setReturnReason(''); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              className="flex-1 bg-orange-600 hover:bg-orange-700 focus:ring-orange-500"
+              loading={returnMutation.isPending}
+              onClick={() => returnMutation.mutate()}
+            >
+              Confirm Return
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

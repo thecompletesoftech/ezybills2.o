@@ -87,7 +87,7 @@ class ProductController extends Controller
                 'stock_id'       => $stock->id,
                 'product_id'     => $product->id,
                 'business_id'    => $businessId,
-                'movement_type'  => 'opening',
+                'movement_type'  => 'stock_in',
                 'quantity'       => $openingQty,
                 'reference_type' => 'product',
                 'reference_id'   => $product->id,

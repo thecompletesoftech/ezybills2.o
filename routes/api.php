@@ -43,9 +43,9 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('units', Api\UnitController::class);
 
         // Inventory/Stock
+        Route::post('stock/add', [Api\StockController::class, 'addStock']);
         Route::apiResource('stock', Api\StockController::class);
         Route::post('stock/{stock}/adjust', [Api\StockController::class, 'adjust']);
-        Route::post('stock/add', [Api\StockController::class, 'addStock']);
         Route::get('stock/reports/summary', [Api\StockReportController::class, 'summary']);
         Route::get('stock/reports/ledger', [Api\StockReportController::class, 'ledger']);
         Route::get('stock/alerts', [Api\StockAlertController::class, 'index']);
@@ -64,6 +64,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('invoices', Api\InvoiceController::class);
         Route::post('invoices/{invoice}/hold', [Api\InvoiceController::class, 'hold']);
         Route::post('invoices/{invoice}/resume', [Api\InvoiceController::class, 'resume']);
+        Route::post('invoices/{invoice}/return', [Api\InvoiceController::class, 'createReturn']);
         Route::post('invoices/{invoice}/payment', [Api\InvoiceController::class, 'recordPayment']);
         Route::post('invoices/{invoice}/share-whatsapp', [Api\InvoiceController::class, 'shareViaWhatsApp']);
         Route::get('invoices/{invoice}/print', [Api\InvoiceController::class, 'print']);

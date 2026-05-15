@@ -203,7 +203,6 @@ export default function POSPage() {
     setSelectedCustomer(null);
     setCustomerSearch('');
     setDiscountPct(0);
-    setTaxPct(0);
     setCashReceived('');
     setPaymentMode('cash');
   };

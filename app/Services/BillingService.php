@@ -119,14 +119,109 @@ class BillingService
         return true;
     }
 
+    public function createSaleReturn($businessId, Invoice $originalInvoice, array $returnItems, ?string $reason = null): Invoice
+    {
+        if ($originalInvoice->invoice_status === 'cancelled') {
+            throw new \Exception('Cannot return a cancelled invoice');
+        }
+        if ($originalInvoice->invoice_type === 'sale_return') {
+            throw new \Exception('Cannot return a return invoice');
+        }
+
+        $returnInvoice = Invoice::create([
+            'business_id'    => $businessId,
+            'customer_id'    => $originalInvoice->customer_id,
+            'invoice_number' => $this->generateReturnNumber($businessId),
+            'invoice_type'   => 'sale_return',
+            'invoice_date'   => now(),
+            'invoice_status' => 'confirmed',
+            'payment_status' => 'paid',
+            'subtotal'       => 0,
+            'tax_amount'     => 0,
+            'discount_amount'=> 0,
+            'round_off'      => 0,
+            'total_amount'   => 0,
+            'notes'          => 'Return of ' . $originalInvoice->invoice_number . ($reason ? ': ' . $reason : ''),
+            'created_by'     => auth()->id(),
+        ]);
+
+        $subtotal  = 0;
+        $taxAmount = 0;
+        $inventoryService = new \App\Services\InventoryService();
+
+        $originalInvoice->load('items');
+
+        foreach ($returnItems as $item) {
+            $original = $originalInvoice->items
+                ->firstWhere('product_id', $item['product_id']);
+
+            if (!$original) continue;
+
+            $qty        = min((float) $item['quantity'], (float) $original->quantity);
+            $lineBase   = $qty * $original->unit_price;
+            $lineDisc   = $lineBase * ($original->discount_percentage ?? 0) / 100;
+            $lineTax    = ($lineBase - $lineDisc) * ($original->tax_percentage ?? 0) / 100;
+            $lineTotal  = $lineBase - $lineDisc + $lineTax;
+
+            InvoiceItem::create([
+                'invoice_id'          => $returnInvoice->id,
+                'product_id'          => $item['product_id'],
+                'quantity'            => $qty,
+                'unit_price'          => $original->unit_price,
+                'discount_percentage' => $original->discount_percentage,
+                'discount_amount'     => $lineDisc,
+                'tax_percentage'      => $original->tax_percentage,
+                'tax_amount'          => $lineTax,
+                'line_total'          => $lineTotal,
+            ]);
+
+            $subtotal  += $lineBase;
+            $taxAmount += $lineTax;
+
+            // Add stock back at current WAC — no WAC recalculation for returns
+            $inventoryService->addStock(
+                $item['product_id'], $businessId, $qty,
+                'return', 'invoice', $returnInvoice->id
+            );
+        }
+
+        $totalReturn = $subtotal + $taxAmount;
+
+        $returnInvoice->update([
+            'subtotal'     => $subtotal,
+            'tax_amount'   => $taxAmount,
+            'total_amount' => $totalReturn,
+        ]);
+
+        // Credit customer: reduce outstanding due (shop owes them the refund)
+        if ($originalInvoice->customer_id && $totalReturn > 0) {
+            $customer = Customer::find($originalInvoice->customer_id);
+            if ($customer) {
+                $customer->update(['due_amount' => max(0, $customer->due_amount - $totalReturn)]);
+            }
+        }
+
+        return $returnInvoice;
+    }
+
     private function generateInvoiceNumber($businessId)
     {
         $prefix = 'INV';
         $lastInvoice = Invoice::where('business_id', $businessId)
             ->latest('id')
             ->first();
-        
+
         $number = ($lastInvoice ? intval(substr($lastInvoice->invoice_number, -6)) : 0) + 1;
         return $prefix . str_pad($number, 6, '0', STR_PAD_LEFT);
+    }
+
+    private function generateReturnNumber($businessId): string
+    {
+        $last = Invoice::where('business_id', $businessId)
+            ->where('invoice_type', 'sale_return')
+            ->latest('id')
+            ->first();
+        $number = ($last ? intval(substr($last->invoice_number, -6)) : 0) + 1;
+        return 'RET' . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
 }

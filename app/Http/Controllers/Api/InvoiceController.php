@@ -104,6 +104,28 @@ class InvoiceController extends Controller
         }
     }
 
+    public function createReturn(Request $request, Invoice $invoice)
+    {
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $returnInvoice = $this->billingService->createSaleReturn(
+                auth()->user()->business_id,
+                $invoice,
+                $validated['items'],
+                $validated['reason'] ?? null
+            );
+            return $this->success($returnInvoice->load('items', 'customer'), 'Sale return created', 201);
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
     public function shareViaWhatsApp(Invoice $invoice)
     {
         // TODO: Generate WhatsApp message and send

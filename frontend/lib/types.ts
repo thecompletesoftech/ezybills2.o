@@ -91,6 +91,7 @@ export interface Payment {
 export interface Invoice {
   id: number;
   invoice_number: string;
+  invoice_type: string;
   customer_id: number | null;
   customer?: Customer;
   invoice_date: string;
