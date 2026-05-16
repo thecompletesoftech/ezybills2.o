@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/models/dashboard_model.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/subscription_provider.dart';
 import '../../core/widgets/currency_text.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/shimmer_list.dart';
@@ -32,7 +33,10 @@ class DashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.read(dashboardProvider.notifier).refresh(),
+            onPressed: () {
+              ref.read(dashboardProvider.notifier).refresh();
+              ref.read(subscriptionProvider.notifier).refresh();
+            },
           ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -52,27 +56,44 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardBody extends StatelessWidget {
+class _DashboardBody extends ConsumerWidget {
   const _DashboardBody({required this.data});
 
   final DashboardModel data;
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-        onRefresh: () async {},
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _todayRow(context),
-            const SizedBox(height: 16),
-            _statsGrid(context),
-            const SizedBox(height: 16),
-            _weeklyChart(context),
-            const SizedBox(height: 16),
-            _topProducts(context),
-          ],
-        ),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final subAsync = ref.watch(subscriptionProvider);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(dashboardProvider.notifier).refresh();
+        await ref.read(subscriptionProvider.notifier).refresh();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          subAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (sub) => sub != null
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _PlanStatusCard(sub: sub),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          _todayRow(context),
+          const SizedBox(height: 16),
+          _statsGrid(context),
+          const SizedBox(height: 16),
+          _weeklyChart(context),
+          const SizedBox(height: 16),
+          _topProducts(context),
+        ],
+      ),
+    );
+  }
 
   Widget _todayRow(BuildContext context) => Row(
         children: [
@@ -152,17 +173,17 @@ class _DashboardBody extends StatelessWidget {
               height: 160,
               child: BarChart(
                 BarChartData(
-                  barGroups: data.weeklyData.asMap().entries.map((e) {
-                    return BarChartGroupData(x: e.key, barRods: [
-                      BarChartRodData(
-                        toY: e.value.sales,
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 16,
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4)),
-                      ),
-                    ]);
-                  }).toList(),
+                  barGroups: data.weeklyData.asMap().entries
+                      .map((e) => BarChartGroupData(x: e.key, barRods: [
+                            BarChartRodData(
+                              toY: e.value.sales,
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 16,
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(4)),
+                            ),
+                          ]))
+                      .toList(),
                   titlesData: FlTitlesData(
                     leftTitles: const AxisTitles(
                         sideTitles: SideTitles(showTitles: false)),
@@ -226,6 +247,84 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
+class _PlanStatusCard extends StatelessWidget {
+  const _PlanStatusCard({required this.sub});
+
+  final SubscriptionStatus sub;
+
+  @override
+  Widget build(BuildContext context) {
+    if (sub.isTrial) {
+      return Card(
+        color: Colors.orange.shade50,
+        child: ListTile(
+          leading: Icon(Icons.info_outline, color: Colors.orange.shade700),
+          title: const Text('Free Trial',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: const Text('Upgrade to a paid plan for full access.'),
+        ),
+      );
+    }
+
+    final plan = sub.plan;
+    final days = sub.daysLeft;
+    final isExpired = !sub.isActive;
+
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    if (isExpired) {
+      statusColor = Colors.red;
+      statusIcon = Icons.cancel_outlined;
+      statusText = 'Subscription Expired';
+    } else if (days <= 7) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.warning_amber_outlined;
+      statusText = '$days day${days == 1 ? '' : 's'} left — renew soon';
+    } else {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle_outline;
+      statusText = '$days days remaining';
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(statusIcon, color: statusColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    plan?.name ?? 'Active Plan',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    statusText,
+                    style: TextStyle(color: statusColor, fontSize: 12),
+                  ),
+                  if (sub.expiresAt != null)
+                    Text(
+                      'Expires ${DateFormat('dd MMM yyyy').format(sub.expiresAt!)}',
+                      style: TextStyle(
+                          color: Colors.grey.shade600, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.label,
@@ -250,7 +349,7 @@ class _SummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -267,14 +366,13 @@ class _SummaryCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
-                    isCurrency
-                        ? CurrencyText(value,
-                            bold: true,
-                            style: const TextStyle(fontSize: 15))
-                        : Text(value.toInt().toString(),
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold)),
+                    if (isCurrency)
+                      CurrencyText(value,
+                          bold: true, style: const TextStyle(fontSize: 15))
+                    else
+                      Text(value.toInt().toString(),
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),

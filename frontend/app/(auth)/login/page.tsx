@@ -27,7 +27,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/dashboard');
+      const { user } = useAuthStore.getState();
+      router.replace(user?.role === 'super_admin' ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, router]);
 
@@ -43,7 +44,8 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
       toast.success('Welcome back!');
-      router.replace('/dashboard');
+      const { user } = useAuthStore.getState();
+      router.replace(user?.role === 'super_admin' ? '/admin' : '/dashboard');
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||

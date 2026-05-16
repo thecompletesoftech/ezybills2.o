@@ -31,6 +31,9 @@ Route::prefix('v1')->group(function () {
         Route::get('dashboard/summary', [Api\DashboardController::class, 'summary']);
         Route::get('dashboard/charts', [Api\DashboardController::class, 'charts']);
 
+        // Subscription status for logged-in user
+        Route::get('my-plan', [Api\SubscriptionStatusController::class, 'myPlan']);
+
         // Products
         Route::apiResource('products', Api\ProductController::class);
         Route::post('products/{product}/upload-image', [Api\ProductController::class, 'uploadImage']);
