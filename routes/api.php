@@ -15,6 +15,8 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/verify-otp', [Api\AuthController::class, 'verifyOtp']);
     Route::post('/auth/forgot-password', [Api\AuthController::class, 'forgotPassword']);
     Route::post('/auth/reset-password', [Api\AuthController::class, 'resetPassword']);
+    Route::get('/auth/verify-email/{token}', [Api\AuthController::class, 'verifyEmail']);
+    Route::post('/auth/resend-verification', [Api\AuthController::class, 'resendVerification']);
 
     // Protected routes - require authentication
     Route::middleware(['auth:sanctum'])->group(function () {

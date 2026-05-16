@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/lib/auth';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated, loadFromStorage } = useAuthStore();
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
   useEffect(() => {
     loadFromStorage();
@@ -41,6 +43,7 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    setUnverifiedEmail('');
     try {
       await login(data.email, data.password);
       toast.success('Welcome back!');
@@ -50,7 +53,11 @@ export default function LoginPage() {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Invalid credentials. Please try again.';
-      toast.error(message);
+      if (message === 'email_not_verified') {
+        setUnverifiedEmail(data.email);
+      } else {
+        toast.error(message);
+      }
     }
   };
 
@@ -69,6 +76,20 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Sign in to your account</h2>
+
+          {/* Email not verified banner */}
+          {unverifiedEmail && (
+            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <p className="font-medium mb-1">Email not verified</p>
+              <p className="text-xs mb-2">Please verify your email before logging in.</p>
+              <Link
+                href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`}
+                className="text-xs font-semibold text-amber-900 underline"
+              >
+                Resend verification email &rarr;
+              </Link>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <Input
@@ -98,7 +119,14 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-gray-400 mt-6">
+          <p className="text-center text-sm text-gray-500 mt-5">
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="text-[#0066CC] font-medium hover:underline">
+              Create one
+            </Link>
+          </p>
+
+          <p className="text-center text-xs text-gray-400 mt-3">
             &copy; {new Date().getFullYear()} EzyBills. All rights reserved.
           </p>
         </div>

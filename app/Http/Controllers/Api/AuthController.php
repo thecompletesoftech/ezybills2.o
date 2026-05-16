@@ -31,8 +31,7 @@ class AuthController extends Controller
             $user = $this->authService->register($validated);
             return $this->success([
                 'user' => $user,
-                'token' => $user->createToken('auth-token')->plainTextToken,
-            ], 'Registration successful', 201);
+            ], 'Registration successful. Please check your email to verify your account.', 201);
         } catch (\Exception $e) {
             return $this->error($e->getMessage(), 400);
         }
@@ -85,6 +84,34 @@ class AuthController extends Controller
                 'user' => $user,
                 'token' => $token,
             ], 'OTP verified successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function verifyEmail(Request $request, string $token)
+    {
+        try {
+            $user = $this->authService->verifyEmail($token);
+            $authToken = $user->createToken('auth-token')->plainTextToken;
+            return $this->success([
+                'user' => $user,
+                'token' => $authToken,
+            ], 'Email verified successfully');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
+    }
+
+    public function resendVerification(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        try {
+            $this->authService->resendVerification($validated['email']);
+            return $this->success(null, 'Verification email sent');
         } catch (\Exception $e) {
             return $this->error($e->getMessage(), 400);
         }

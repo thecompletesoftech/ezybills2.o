@@ -12,6 +12,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loadFromStorage: () => void;
+  setAuth: (user: User, token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -41,6 +42,13 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       set({ user: null, token: null, business: null, isAuthenticated: false });
     }
+  },
+
+  setAuth: (user: User, token: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token);
+    }
+    set({ user, token, business: (user as User & { business?: Business }).business ?? null, isAuthenticated: true });
   },
 
   loadFromStorage: () => {
