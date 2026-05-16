@@ -13,6 +13,7 @@ export interface Business {
   gst_number: string | null;
   address: string | null;
   mobile_number: string | null;
+  logo_url: string | null;
 }
 
 export interface Category {

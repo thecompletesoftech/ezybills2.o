@@ -1,11 +1,12 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parseISO } from 'date-fns';
-import { CheckCircle, AlertTriangle, XCircle, ShieldCheck, ExternalLink } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, ShieldCheck, ExternalLink, Printer } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
@@ -16,6 +17,162 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+
+interface PrinterSettings {
+  paper_size: string; connection_type: string; printer_name: string | null;
+  bluetooth_address: string | null; network_ip: string | null; network_port: number;
+  auto_print: boolean; print_logo: boolean; print_address: boolean; print_mobile: boolean;
+  print_gst: boolean; print_footer: boolean; footer_text: string | null; copies: number;
+}
+
+function PrinterSettingsCard() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery<PrinterSettings>({
+    queryKey: ['printer-settings'],
+    queryFn: () => api.get('/settings/printer').then(r => r.data.data ?? r.data),
+  });
+
+  const [form, setForm] = useState<Partial<PrinterSettings>>({});
+  const effective = { ...data, ...form } as PrinterSettings;
+
+  const saveMutation = useMutation({
+    mutationFn: (s: Partial<PrinterSettings>) => api.post('/settings/printer', s),
+    onSuccess: () => { toast.success('Printer settings saved'); qc.invalidateQueries({ queryKey: ['printer-settings'] }); setForm({}); },
+    onError: () => toast.error('Failed to save printer settings'),
+  });
+
+  const testPrint = () => {
+    toast.success('Test print sent! Check your printer.');
+    // In a real implementation, this would trigger the browser print dialog or send to printer
+    window.print();
+  };
+
+  const set = <K extends keyof PrinterSettings>(k: K, v: PrinterSettings[K]) =>
+    setForm(f => ({ ...f, [k]: v }));
+
+  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Printer size={18} className="text-gray-600" /> Printer Settings
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Paper size */}
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Paper Size</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: '58mm', label: '58mm', sub: '2 inch' },
+              { value: '80mm', label: '80mm', sub: '3 inch' },
+              { value: 'A4', label: 'A4', sub: 'Full page' },
+            ].map(opt => (
+              <button
+                key={opt.value} type="button"
+                onClick={() => set('paper_size', opt.value)}
+                className={`p-3 rounded-lg border-2 text-center transition-colors ${effective.paper_size === opt.value ? 'border-[#0066CC] bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
+              >
+                <p className={`font-semibold text-sm ${effective.paper_size === opt.value ? 'text-[#0066CC]' : 'text-gray-700'}`}>{opt.label}</p>
+                <p className="text-xs text-gray-400">{opt.sub}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Connection type */}
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Connection Type</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: 'usb', label: 'USB', sub: 'Windows/Mac' },
+              { value: 'bluetooth', label: 'Bluetooth', sub: 'Mobile app' },
+              { value: 'network', label: 'Network', sub: 'LAN / WiFi' },
+            ].map(opt => (
+              <button
+                key={opt.value} type="button"
+                onClick={() => set('connection_type', opt.value)}
+                className={`p-3 rounded-lg border-2 text-center transition-colors ${effective.connection_type === opt.value ? 'border-[#0066CC] bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
+              >
+                <p className={`font-semibold text-sm ${effective.connection_type === opt.value ? 'text-[#0066CC]' : 'text-gray-700'}`}>{opt.label}</p>
+                <p className="text-xs text-gray-400">{opt.sub}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Conditional fields */}
+        {effective.connection_type === 'usb' && (
+          <Input label="Printer Name (optional)" placeholder="e.g. EPSON TM-T82"
+            value={effective.printer_name ?? ''} onChange={e => set('printer_name', e.target.value || null)} />
+        )}
+        {effective.connection_type === 'bluetooth' && (
+          <Input label="Bluetooth MAC Address" placeholder="e.g. 00:11:22:33:44:55"
+            value={effective.bluetooth_address ?? ''} onChange={e => set('bluetooth_address', e.target.value || null)} />
+        )}
+        {effective.connection_type === 'network' && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Input label="Printer IP Address" placeholder="e.g. 192.168.1.100"
+                value={effective.network_ip ?? ''} onChange={e => set('network_ip', e.target.value || null)} />
+            </div>
+            <Input label="Port" type="number" placeholder="9100"
+              value={String(effective.network_port ?? 9100)} onChange={e => set('network_port', parseInt(e.target.value) || 9100)} />
+          </div>
+        )}
+
+        {/* Bill options */}
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Bill Options</p>
+          <div className="space-y-2">
+            {([
+              { key: 'auto_print', label: 'Auto-print on invoice save' },
+              { key: 'print_logo', label: 'Print business logo' },
+              { key: 'print_address', label: 'Print business address' },
+              { key: 'print_mobile', label: 'Print mobile number' },
+              { key: 'print_gst', label: 'Print GST breakdown' },
+              { key: 'print_footer', label: 'Print footer message' },
+            ] as { key: keyof PrinterSettings; label: string }[]).map(opt => (
+              <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!effective[opt.key]}
+                  onChange={e => set(opt.key, e.target.checked as PrinterSettings[typeof opt.key])}
+                  className="rounded" />
+                <span className="text-sm text-gray-700">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {effective.print_footer && (
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Footer Text</label>
+            <textarea rows={2} placeholder="Thank you for your business!"
+              value={effective.footer_text ?? ''}
+              onChange={e => set('footer_text', e.target.value || null)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC] resize-none" />
+          </div>
+        )}
+
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Number of Copies</label>
+          <select value={effective.copies ?? 1} onChange={e => set('copies', parseInt(e.target.value))}
+            className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]">
+            {[1, 2, 3].map(n => <option key={n} value={n}>{n} cop{n === 1 ? 'y' : 'ies'}</option>)}
+          </select>
+        </div>
+
+        <div className="flex gap-3 pt-2 border-t border-gray-100">
+          <Button variant="outline" onClick={testPrint}>Test Print</Button>
+          <Button variant="primary" loading={saveMutation.isPending}
+            onClick={() => saveMutation.mutate(form)}>
+            Save Printer Settings
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface MyPlan {
   plan: { id: number; name: string; price: number; billing_cycle: string; features: string[] } | null;
@@ -178,6 +335,8 @@ export default function SettingsPage() {
           </Link>
         </div>
       )}
+
+      <PrinterSettingsCard />
 
       <Card>
         <CardHeader>

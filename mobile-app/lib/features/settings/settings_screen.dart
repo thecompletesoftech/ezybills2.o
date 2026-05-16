@@ -6,6 +6,7 @@ import '../../core/providers/business_provider.dart';
 import '../../core/providers/subscription_provider.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_text_field.dart';
+import 'printer_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -181,6 +182,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           AppTextField(label: 'UPI ID', controller: _upiController),
           const SizedBox(height: 24),
           AppButton(label: 'Save Changes', onPressed: _save, loading: _loading),
+
+          // ── App Settings ─────────────────────────────────────────────────
+          const SizedBox(height: 20),
+          _sectionHeader('App Settings'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.print_outlined),
+                  title: const Text('Printer Settings'),
+                  subtitle: const Text('Paper size, connection, bill options'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PrinterSettingsScreen(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           // ── Logout ────────────────────────────────────────────────────────
           const SizedBox(height: 16),

@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
 
         // Business Setup
         Route::apiResource('business', Api\BusinessController::class);
+        Route::post('business/{business}/logo', [Api\BusinessController::class, 'uploadLogo']);
         Route::post('business/{business}/settings', [Api\BusinessSettingsController::class, 'update']);
         Route::get('business/{business}/settings', [Api\BusinessSettingsController::class, 'show']);
 
@@ -114,9 +115,22 @@ Route::prefix('v1')->group(function () {
         Route::get('whatsapp/templates', [Api\WhatsAppController::class, 'getTemplates']);
         Route::get('whatsapp/message-logs', [Api\WhatsAppController::class, 'messageLogs']);
 
+        // Tax Rates
+        Route::get('tax-rates', [Api\TaxRateController::class, 'index']);
+        Route::post('tax-rates', [Api\TaxRateController::class, 'store']);
+        Route::put('tax-rates/{taxRate}', [Api\TaxRateController::class, 'update']);
+        Route::delete('tax-rates/{taxRate}', [Api\TaxRateController::class, 'destroy']);
+
+        // Bulk imports
+        Route::get('products/import/sample', [Api\BulkProductImportController::class, 'sampleCsv']);
+        Route::post('products/import', [Api\BulkProductImportController::class, 'import']);
+        Route::get('stock/restock/sample', [Api\BulkStockRestockController::class, 'sampleCsv']);
+        Route::post('stock/restock', [Api\BulkStockRestockController::class, 'import']);
+
         // Settings
         Route::get('settings', [Api\SettingsController::class, 'show']);
         Route::post('settings', [Api\SettingsController::class, 'update']);
+        Route::get('settings/printer', [Api\PrinterSettingsController::class, 'show']);
         Route::post('settings/printer', [Api\PrinterSettingsController::class, 'update']);
         Route::post('settings/backup', [Api\BackupController::class, 'backup']);
 

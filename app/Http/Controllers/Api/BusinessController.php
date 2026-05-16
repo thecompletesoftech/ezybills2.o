@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Business;
 use App\Models\BusinessSettings;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BusinessController extends Controller
 {
@@ -69,6 +70,47 @@ class BusinessController extends Controller
 
         $business->update($validated);
         return $this->success($business, 'Business updated');
+    }
+
+    public function uploadLogo(Request $request, Business $business)
+    {
+        $this->authorize('update', $business);
+
+        $request->validate(['logo' => 'required|image|max:5120']);
+
+        $file = $request->file('logo');
+        $imageData = file_get_contents($file->getRealPath());
+        $src = imagecreatefromstring($imageData);
+        if (!$src) {
+            return response()->json(['message' => 'Invalid image file'], 422);
+        }
+
+        $origW = imagesx($src);
+        $origH = imagesy($src);
+        $size = 300;
+        $ratio = min($size / $origW, $size / $origH);
+        $newW = (int) ($origW * $ratio);
+        $newH = (int) ($origH * $ratio);
+
+        $dst = imagecreatetruecolor($size, $size);
+        $white = imagecolorallocate($dst, 255, 255, 255);
+        imagefill($dst, 0, 0, $white);
+        $x = (int) (($size - $newW) / 2);
+        $y = (int) (($size - $newH) / 2);
+        imagecopyresampled($dst, $src, $x, $y, 0, 0, $newW, $newH, $origW, $origH);
+
+        $filename = 'logos/business_' . $business->id . '_' . time() . '.jpg';
+        ob_start();
+        imagejpeg($dst, null, 85);
+        $jpeg = ob_get_clean();
+        imagedestroy($src);
+        imagedestroy($dst);
+
+        Storage::disk('public')->put($filename, $jpeg);
+        $logoUrl = Storage::disk('public')->url($filename);
+
+        $business->update(['logo_url' => $logoUrl]);
+        return $this->success(['logo_url' => $logoUrl], 'Logo uploaded');
     }
 
     public function destroy(Business $business)

@@ -19,6 +19,7 @@ class Product extends Model
         'barcode',
         'category_id',
         'brand_id',
+        'supplier_id',
         'hsn_code',
         'gst_percentage',
         'description',
@@ -31,6 +32,7 @@ class Product extends Model
         'secondary_unit_id',
         'unit_conversion',
         'image_url',
+        'low_stock_threshold',
         'is_active',
     ];
 
@@ -84,6 +86,11 @@ class Product extends Model
     public function brand()
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function primaryUnit()

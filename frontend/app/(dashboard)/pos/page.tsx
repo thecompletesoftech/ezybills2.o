@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   Plus,
@@ -19,7 +19,10 @@ import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import type { Product, Category, Customer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
+import PrintBill, { type BillData } from '@/components/print-bill';
 
 interface CartItem {
   product_id: number;
@@ -40,7 +43,12 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+const emptyCustomerForm = { name: '', phone: '', email: '', address: '', gstin: '', opening_balance: '0' };
+type CustomerForm = typeof emptyCustomerForm;
+
 export default function POSPage() {
+  const queryClient = useQueryClient();
+
   // --- Product search & filter ---
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
@@ -52,6 +60,11 @@ export default function POSPage() {
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const customerRef = useRef<HTMLDivElement>(null);
 
+  // --- Quick-add customer modal ---
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
+  const [customerFormError, setCustomerFormError] = useState('');
+
   // --- Totals ---
   const [discountPct, setDiscountPct] = useState(0);
 
@@ -59,8 +72,10 @@ export default function POSPage() {
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('cash');
   const [cashReceived, setCashReceived] = useState('');
 
-  // --- Success modal ---
+  // --- Success modal + print ---
   const [successInvoice, setSuccessInvoice] = useState<{ invoice_number: string; total: number } | null>(null);
+  const [printBillData, setPrintBillData] = useState<BillData | null>(null);
+  const [showPrintBill, setShowPrintBill] = useState(false);
 
   // --- Queries ---
   const { data: categories = [] } = useQuery<Category[]>({
@@ -184,9 +199,32 @@ export default function POSPage() {
     },
     onSuccess: (data, status) => {
       if (status === 'paid') {
-        setSuccessInvoice({
-          invoice_number: data.invoice?.invoice_number ?? data.invoice_number ?? 'INV-' + Date.now(),
-          total: grandTotal,
+        const invoiceNumber = data.invoice?.invoice_number ?? data.invoice_number ?? 'INV-' + Date.now();
+        const business = data.invoice?.business ?? data.business ?? {};
+        setSuccessInvoice({ invoice_number: invoiceNumber, total: grandTotal });
+        setPrintBillData({
+          invoice_number: invoiceNumber,
+          date: new Date().toISOString(),
+          business_name: business.name ?? 'EzyBills',
+          business_address: business.address ?? undefined,
+          business_gst: business.gst_number ?? undefined,
+          business_phone: business.mobile_number ?? undefined,
+          customer_name: selectedCustomer?.name ?? undefined,
+          items: cart.map((item) => ({
+            name: item.name,
+            qty: item.quantity,
+            unit: item.unit,
+            price: item.price,
+            gst_rate: item.gst_rate,
+            discount_pct: discountPct,
+          })),
+          subtotal,
+          discount_amount: discountAmount,
+          tax_amount: taxAmount,
+          grand_total: grandTotal,
+          payment_mode: paymentMode,
+          cash_received: paymentMode === 'cash' && cashReceived ? parseFloat(cashReceived) : undefined,
+          change_amount: paymentMode === 'cash' && cashReceived && changeAmount > 0 ? changeAmount : undefined,
         });
       } else {
         toast.success('Invoice held successfully');
@@ -198,6 +236,37 @@ export default function POSPage() {
     },
   });
 
+  const addCustomerMutation = useMutation({
+    mutationFn: async (form: CustomerForm) => {
+      const res = await api.post('/customers', {
+        name: form.name,
+        phone: form.phone || null,
+        email: form.email || null,
+        address: form.address || null,
+        gstin: form.gstin || null,
+        opening_balance: parseFloat(form.opening_balance) || 0,
+      });
+      return (res.data.data ?? res.data) as Customer;
+    },
+    onSuccess: (customer: Customer) => {
+      setSelectedCustomer(customer);
+      setCustomerSearch(customer.name);
+      setAddCustomerOpen(false);
+      setCustomerForm(emptyCustomerForm);
+      setCustomerFormError('');
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success(`${customer.name} added and selected`);
+    },
+    onError: () => toast.error('Failed to add customer'),
+  });
+
+  const handleAddCustomerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerForm.name.trim()) { setCustomerFormError('Name is required'); return; }
+    setCustomerFormError('');
+    addCustomerMutation.mutate(customerForm);
+  };
+
   const clearCart = () => {
     setCart([]);
     setSelectedCustomer(null);
@@ -205,6 +274,8 @@ export default function POSPage() {
     setDiscountPct(0);
     setCashReceived('');
     setPaymentMode('cash');
+    setPrintBillData(null);
+    setShowPrintBill(false);
   };
 
   return (
@@ -338,7 +409,8 @@ export default function POSPage() {
           </div>
 
           {/* Customer selector */}
-          <div className="relative" ref={customerRef}>
+          <div className="flex items-center gap-2">
+          <div className="relative flex-1" ref={customerRef}>
             <div
               className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:border-[#0066CC]/50 transition-colors"
               onClick={() => setCustomerDropdownOpen(true)}
@@ -395,6 +467,18 @@ export default function POSPage() {
                 ))}
               </div>
             )}
+          </div>
+          <button
+            onClick={() => {
+              setCustomerForm(emptyCustomerForm);
+              setCustomerFormError('');
+              setAddCustomerOpen(true);
+            }}
+            title="Add new customer"
+            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-[#0066CC] hover:text-[#0066CC] hover:bg-blue-50 transition-colors"
+          >
+            <Plus size={16} />
+          </button>
           </div>
         </div>
 
@@ -599,6 +683,11 @@ export default function POSPage() {
         )}
       </div>
 
+      {/* ===== PRINT BILL OVERLAY ===== */}
+      {showPrintBill && printBillData && (
+        <PrintBill bill={printBillData} onClose={() => setShowPrintBill(false)} />
+      )}
+
       {/* ===== SUCCESS MODAL ===== */}
       {successInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -613,7 +702,7 @@ export default function POSPage() {
 
             <div className="flex gap-3 mb-4">
               <button
-                onClick={() => window.print()}
+                onClick={() => setShowPrintBill(true)}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <Printer size={16} /> Print
@@ -644,6 +733,69 @@ export default function POSPage() {
           </div>
         </div>
       )}
+
+      {/* ===== QUICK-ADD CUSTOMER MODAL ===== */}
+      <Modal
+        open={addCustomerOpen}
+        onClose={() => { setAddCustomerOpen(false); setCustomerFormError(''); }}
+        title="Add Customer"
+      >
+        <form onSubmit={handleAddCustomerSubmit} className="space-y-4">
+          <Input
+            label="Full Name *"
+            placeholder="e.g. Rahul Sharma"
+            value={customerForm.name}
+            onChange={(e) => setCustomerForm((f) => ({ ...f, name: e.target.value }))}
+            error={customerFormError || undefined}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Phone"
+              type="tel"
+              placeholder="+91 98765 43210"
+              value={customerForm.phone}
+              onChange={(e) => setCustomerForm((f) => ({ ...f, phone: e.target.value }))}
+            />
+            <Input
+              label="Email"
+              type="email"
+              placeholder="rahul@example.com"
+              value={customerForm.email}
+              onChange={(e) => setCustomerForm((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Address</label>
+            <textarea
+              value={customerForm.address}
+              onChange={(e) => setCustomerForm((f) => ({ ...f, address: e.target.value }))}
+              placeholder="Street, City, State..."
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC] resize-none"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="GSTIN"
+              placeholder="22AAAAA0000A1Z5"
+              value={customerForm.gstin}
+              onChange={(e) => setCustomerForm((f) => ({ ...f, gstin: e.target.value }))}
+            />
+            <Input
+              label="Opening Balance (₹)"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={customerForm.opening_balance}
+              onChange={(e) => setCustomerForm((f) => ({ ...f, opening_balance: e.target.value }))}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setAddCustomerOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={addCustomerMutation.isPending}>Add Customer</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
