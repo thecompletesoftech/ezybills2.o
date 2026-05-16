@@ -25,6 +25,8 @@ class _PrinterSettingsScreenState
   int _networkPort = 9100;
   bool _autoPrint = false;
   bool _printLogo = true;
+  bool _printAddress = true;
+  bool _printMobile = true;
   bool _printGst = true;
   bool _printFooter = true;
   String _footerText = 'Thank you for your business!';
@@ -65,6 +67,8 @@ class _PrinterSettingsScreenState
         _networkPort = s['network_port'] ?? 9100;
         _autoPrint = s['auto_print'] ?? false;
         _printLogo = s['print_logo'] ?? true;
+        _printAddress = s['print_address'] ?? true;
+        _printMobile = s['print_mobile'] ?? true;
         _printGst = s['print_gst'] ?? true;
         _printFooter = s['print_footer'] ?? true;
         _footerText = s['footer_text'] ?? 'Thank you for your business!';
@@ -94,6 +98,8 @@ class _PrinterSettingsScreenState
         'network_port': int.tryParse(_networkPortCtrl.text) ?? 9100,
         'auto_print': _autoPrint,
         'print_logo': _printLogo,
+        'print_address': _printAddress,
+        'print_mobile': _printMobile,
         'print_gst': _printGst,
         'print_footer': _printFooter,
         'footer_text': _footerCtrl.text.trim().isEmpty ? null : _footerCtrl.text.trim(),
@@ -256,6 +262,8 @@ class _PrinterSettingsScreenState
               children: [
                 _switchTile('Auto-print on invoice save', _autoPrint, (v) => setState(() => _autoPrint = v)),
                 _switchTile('Print business logo', _printLogo, (v) => setState(() => _printLogo = v)),
+                _switchTile('Print business address', _printAddress, (v) => setState(() => _printAddress = v)),
+                _switchTile('Print mobile number', _printMobile, (v) => setState(() => _printMobile = v)),
                 _switchTile('Print GST breakdown', _printGst, (v) => setState(() => _printGst = v)),
                 _switchTile('Print footer message', _printFooter, (v) => setState(() => _printFooter = v)),
               ],

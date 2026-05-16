@@ -6,6 +6,7 @@ import '../reports/reports_screen.dart';
 import '../suppliers/supplier_list_screen.dart';
 import '../expenses/expense_list_screen.dart';
 import 'settings_screen.dart';
+import 'tax_rates_screen.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -47,6 +48,12 @@ class MoreScreen extends ConsumerWidget {
             label: 'Expenses',
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ExpenseListScreen())),
+          ),
+          _MenuItem(
+            icon: Icons.percent,
+            label: 'Tax Rates',
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const TaxRatesScreen())),
           ),
           if (isRestaurant) ...[
             const Divider(),

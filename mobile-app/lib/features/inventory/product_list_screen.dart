@@ -16,6 +16,14 @@ class ProductListScreen extends ConsumerStatefulWidget {
 
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   final _searchController = TextEditingController();
+  String? _stockFilter;
+
+  static const _filters = [
+    (null, 'All'),
+    ('in_stock', 'In Stock'),
+    ('low_stock', 'Low Stock'),
+    ('out_of_stock', 'Out of Stock'),
+  ];
 
   @override
   void dispose() {
@@ -58,6 +66,31 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   ref.read(productProvider.notifier).setSearch(v),
             ),
           ),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              scrollDirection: Axis.horizontal,
+              children: _filters.map((f) {
+                final isSelected = _stockFilter == f.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(f.$2),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() => _stockFilter = f.$1);
+                      ref
+                          .read(productProvider.notifier)
+                          .setStockFilter(f.$1);
+                    },
+                    showCheckmark: false,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(
             child: productsAsync.when(
               loading: () => const ShimmerList(),

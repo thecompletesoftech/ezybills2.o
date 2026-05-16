@@ -7,6 +7,7 @@ import 'connectivity_provider.dart';
 class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
   String _search = '';
   int? _categoryId;
+  String? _stockFilter;
 
   @override
   Future<List<ProductModel>> build() async {
@@ -22,11 +23,12 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
     final params = <String, dynamic>{};
     if (_search.isNotEmpty) params['search'] = _search;
     if (_categoryId != null) params['category_id'] = _categoryId;
+    if (_stockFilter != null) params['stock_status'] = _stockFilter;
     final list = await ApiService.getList('/products', queryParameters: params);
     final products = list
         .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
         .toList();
-    if (_search.isEmpty && _categoryId == null) {
+    if (_search.isEmpty && _categoryId == null && _stockFilter == null) {
       await LocalStorageService.cacheProducts(
           products.map((p) => p.toJson()).toList());
     }
@@ -46,6 +48,12 @@ class ProductNotifier extends AsyncNotifier<List<ProductModel>> {
 
   void setCategory(int? categoryId) {
     _categoryId = categoryId;
+    state = const AsyncLoading();
+    AsyncValue.guard(_fetchProducts).then((v) => state = v);
+  }
+
+  void setStockFilter(String? filter) {
+    _stockFilter = filter;
     state = const AsyncLoading();
     AsyncValue.guard(_fetchProducts).then((v) => state = v);
   }

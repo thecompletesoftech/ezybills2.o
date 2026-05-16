@@ -206,6 +206,7 @@ export default function POSPage() {
           invoice_number: invoiceNumber,
           date: new Date().toISOString(),
           business_name: business.name ?? 'EzyBills',
+          business_logo_url: business.logo_url ?? undefined,
           business_address: business.address ?? undefined,
           business_gst: business.gst_number ?? undefined,
           business_phone: business.mobile_number ?? undefined,

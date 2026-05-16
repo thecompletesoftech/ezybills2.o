@@ -98,6 +98,7 @@ export interface Invoice {
   invoice_date: string;
   due_date: string | null;
   status: 'paid' | 'partial' | 'unpaid' | 'cancelled';
+  payment_mode?: string;
   subtotal: number;
   discount_amount: number;
   gst_amount: number;

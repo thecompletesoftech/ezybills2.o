@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/business_provider.dart';
 import '../../core/providers/subscription_provider.dart';
+import '../../core/services/api_service.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_text_field.dart';
 import 'printer_settings_screen.dart';
@@ -21,6 +25,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _gstController = TextEditingController();
   final _upiController = TextEditingController();
   bool _loading = false;
+  bool _logoLoading = false;
+  File? _logoFile;
 
   @override
   void initState() {
@@ -41,6 +47,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _gstController.dispose();
     _upiController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if (result == null || result.files.single.path == null) return;
+    final file = File(result.files.single.path!);
+    setState(() {
+      _logoFile = file;
+      _logoLoading = true;
+    });
+    try {
+      final business = ref.read(businessProvider).valueOrNull;
+      if (business == null) return;
+      await ApiService.post(
+        '/business/${business.id}/logo',
+        data: {
+          'logo': await MultipartFile.fromFile(file.path, filename: 'logo.jpg'),
+        },
+        isFormData: true,
+      );
+      await ref.read(businessProvider.notifier).loadBusiness();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo updated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _logoLoading = false);
+    }
   }
 
   Future<void> _save() async {
@@ -169,6 +210,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── Business Information ──────────────────────────────────────────
           _sectionHeader('Business Information'),
+          Center(
+            child: GestureDetector(
+              onTap: _logoLoading ? null : _pickLogo,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey.shade100,
+                      border: Border.all(color: Colors.grey.shade300),
+                      image: _logoFile != null
+                          ? DecorationImage(
+                              image: FileImage(_logoFile!),
+                              fit: BoxFit.cover,
+                            )
+                          : business?.logoUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(business!.logoUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                    ),
+                    child: _logoLoading
+                        ? const CircularProgressIndicator()
+                        : (_logoFile == null && business?.logoUrl == null)
+                            ? const Icon(Icons.store,
+                                size: 36, color: Colors.grey)
+                            : null,
+                  ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0066CC),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: const Icon(Icons.camera_alt,
+                        size: 14, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           AppTextField(label: 'Business Name', controller: _nameController),
           const SizedBox(height: 12),
           AppTextField(

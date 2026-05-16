@@ -22,7 +22,7 @@ class ProductModel {
   final String? imageUrl;
   final bool isActive;
   final double currentStock;
-  final double minimumStock;
+  final double lowStockThreshold;
 
   const ProductModel({
     required this.id,
@@ -48,7 +48,7 @@ class ProductModel {
     this.imageUrl,
     required this.isActive,
     this.currentStock = 0,
-    this.minimumStock = 0,
+    this.lowStockThreshold = 0,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) => ProductModel(
@@ -78,7 +78,7 @@ class ProductModel {
         imageUrl: json['image_url'] as String?,
         isActive: (json['is_active'] as bool?) ?? true,
         currentStock: _toDouble(json['stock']?['current_stock']),
-        minimumStock: _toDouble(json['stock']?['minimum_stock']),
+        lowStockThreshold: _toDouble(json['low_stock_threshold']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -103,7 +103,7 @@ class ProductModel {
         'is_active': isActive,
       };
 
-  bool get isLowStock => currentStock <= minimumStock;
+  bool get isLowStock => currentStock <= lowStockThreshold;
   bool get isOutOfStock => currentStock <= 0;
   double get effectivePrice =>
       discountPercentage > 0

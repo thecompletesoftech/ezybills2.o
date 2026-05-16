@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parseISO } from 'date-fns';
-import { CheckCircle, AlertTriangle, XCircle, ShieldCheck, ExternalLink, Printer } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, ShieldCheck, ExternalLink, Printer, Upload, X } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/auth';
@@ -195,6 +196,34 @@ type BusinessFormData = z.infer<typeof businessSchema>;
 
 export default function SettingsPage() {
   const { business, user } = useAuthStore();
+  const qc = useQueryClient();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  const logoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await api.post(`/business/${data?.id ?? business?.id}/logo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data.data as { logo_url: string };
+    },
+    onSuccess: () => {
+      toast.success('Logo uploaded');
+      setLogoPreview(null);
+      qc.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: () => toast.error('Failed to upload logo'),
+  });
+
+  const handleLogoFile = (file: File) => {
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => setLogoPreview(e.target?.result as string);
+    reader.readAsDataURL(file);
+    logoMutation.mutate(file);
+  };
 
   const { data: myPlan, isLoading: planLoading } = useQuery<MyPlan>({
     queryKey: ['my-plan'],
@@ -347,6 +376,51 @@ export default function SettingsPage() {
             <div className="flex justify-center py-8"><Spinner /></div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Logo upload */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">Business Logo</label>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0 cursor-pointer hover:border-[#0066CC]/50 transition-colors"
+                    onClick={() => logoInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleLogoFile(f); }}
+                  >
+                    {logoMutation.isPending ? (
+                      <Spinner />
+                    ) : logoPreview || data?.logo_url ? (
+                      <Image
+                        src={logoPreview ?? data!.logo_url!}
+                        alt="Business logo"
+                        width={96} height={96}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="text-center text-gray-400 p-2">
+                        <Upload size={20} className="mx-auto mb-1" />
+                        <p className="text-xs">Logo</p>
+                      </div>
+                    )}
+                  </div>
+                  <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); }} />
+                  <div className="text-sm text-gray-500 space-y-1">
+                    <p>Click or drag & drop to upload your logo.</p>
+                    <p className="text-xs text-gray-400">PNG, JPG — auto-resized to 300×300px</p>
+                    {(logoPreview || data?.logo_url) && (
+                      <button
+                        type="button"
+                        onClick={() => { setLogoPreview(null); api.put(`/business/${data?.id ?? business?.id}`, { logo_url: null }); qc.invalidateQueries({ queryKey: ['business'] }); }}
+                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                      >
+                        <X size={12} /> Remove logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <Input
                 label="Business Name"
                 placeholder="Your Business Name"

@@ -2,17 +2,18 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Eye, FileText, RotateCcw } from 'lucide-react';
+import { Search, Eye, FileText, RotateCcw, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import type { Invoice, InvoiceItem, PaginatedResponse } from '@/lib/types';
+import type { Invoice, InvoiceItem, PaginatedResponse, Business } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/components/ui/table';
 import { Spinner } from '@/components/ui/spinner';
+import PrintBill, { type BillData } from '@/components/print-bill';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
@@ -60,6 +61,12 @@ export default function InvoicesPage() {
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnQtys, setReturnQtys] = useState<ReturnQtys>({});
   const [returnReason, setReturnReason] = useState('');
+  const [showPrintBill, setShowPrintBill] = useState(false);
+
+  const { data: businessData } = useQuery<Business>({
+    queryKey: ['business'],
+    queryFn: async () => { const res = await api.get('/business'); return res.data; },
+  });
 
   const { data, isLoading } = useQuery<PaginatedResponse<Invoice>>({
     queryKey: ['invoices', { page, search, status: statusFilter }],
@@ -360,8 +367,8 @@ export default function InvoicesPage() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => window.print()}>
-                  Print Invoice
+                <Button variant="outline" size="sm" onClick={() => setShowPrintBill(true)}>
+                  <Printer size={14} className="mr-1" /> Print Invoice
                 </Button>
                 <Button variant="primary" size="sm" onClick={() => { setDetailModalOpen(false); setDetailInvoice(null); }}>
                   Close
@@ -441,6 +448,34 @@ export default function InvoicesPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Print Bill overlay */}
+      {showPrintBill && invoiceDetail && (() => {
+        const bill: BillData = {
+          invoice_number: invoiceDetail.invoice_number,
+          date: invoiceDetail.invoice_date,
+          business_name: businessData?.name ?? 'EzyBills',
+          business_logo_url: businessData?.logo_url ?? undefined,
+          business_address: businessData?.address ?? undefined,
+          business_gst: businessData?.gst_number ?? undefined,
+          business_phone: businessData?.mobile_number ?? undefined,
+          customer_name: invoiceDetail.customer?.name ?? undefined,
+          items: (invoiceDetail.items ?? []).map(item => ({
+            name: item.product?.name ?? `Product #${item.product_id}`,
+            qty: item.quantity,
+            unit: (item.product as { unit?: { short_name?: string } } | undefined)?.unit?.short_name ?? 'pcs',
+            price: item.unit_price,
+            gst_rate: item.gst_rate ?? 0,
+            discount_pct: item.discount ?? 0,
+          })),
+          subtotal: invoiceDetail.subtotal,
+          discount_amount: invoiceDetail.discount_amount,
+          tax_amount: invoiceDetail.gst_amount,
+          grand_total: invoiceDetail.total_amount,
+          payment_mode: invoiceDetail.payment_mode ?? invoiceDetail.payments?.[0]?.payment_method ?? 'cash',
+        };
+        return <PrintBill bill={bill} onClose={() => setShowPrintBill(false)} />;
+      })()}
     </div>
   );
 }

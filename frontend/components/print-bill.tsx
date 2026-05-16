@@ -16,6 +16,7 @@ export interface BillData {
   invoice_number: string;
   date: string;
   business_name: string;
+  business_logo_url?: string;
   business_address?: string;
   business_gst?: string;
   business_phone?: string;
@@ -31,7 +32,10 @@ export interface BillData {
 }
 
 interface PrinterSettings {
-  paper_size: string;  // '58mm' | '80mm' | 'A4'
+  paper_size: string;
+  print_logo: boolean;
+  print_address: boolean;
+  print_mobile: boolean;
   print_gst: boolean;
   print_footer: boolean;
   footer_text: string | null;
@@ -57,14 +61,18 @@ function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSett
     <div style={{ width, fontFamily: 'monospace', fontSize: '11px', padding: '4px', lineHeight: 1.4 }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 6 }}>
+        {settings.print_logo && bill.business_logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={bill.business_logo_url} alt="logo" style={{ width: 48, height: 48, objectFit: 'contain', marginBottom: 4 }} />
+        )}
         <div style={{ fontSize: 14, fontWeight: 'bold' }}>{bill.business_name}</div>
-        {bill.business_address && <div>{bill.business_address}</div>}
-        {bill.business_phone && <div>Ph: {bill.business_phone}</div>}
-        {bill.business_gst && <div>GSTIN: {bill.business_gst}</div>}
+        {settings.print_address && bill.business_address && <div>{bill.business_address}</div>}
+        {settings.print_mobile && bill.business_phone && <div>Ph: {bill.business_phone}</div>}
+        {settings.print_gst && bill.business_gst && <div>GSTIN: {bill.business_gst}</div>}
       </div>
 
       <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '3px 0', marginBottom: 4 }}>
-        <Line label={`Bill #${bill.invoice_number}`} value={bill.date} />
+        <Line label={`Bill #${bill.invoice_number}`} value={new Date(bill.date).toLocaleDateString('en-IN')} />
         {bill.customer_name && <Line label="Customer:" value={bill.customer_name} />}
         <Line label="Mode:" value={bill.payment_mode.toUpperCase()} />
       </div>
@@ -97,7 +105,7 @@ function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSett
       {/* Totals */}
       <div style={{ borderTop: '1px dashed #000', paddingTop: 4, marginBottom: 4 }}>
         <Line label="Subtotal" value={fmt(bill.subtotal)} />
-        {bill.discount_amount > 0 && <Line label={`Discount`} value={`-${fmt(bill.discount_amount)}`} />}
+        {bill.discount_amount > 0 && <Line label="Discount" value={`-${fmt(bill.discount_amount)}`} />}
         {settings.print_gst && bill.tax_amount > 0 && <Line label="GST Total" value={fmt(bill.tax_amount)} />}
         <div style={{ borderTop: '1px solid #000', marginTop: 3, paddingTop: 3 }}>
           <Line label="TOTAL" value={fmt(bill.grand_total)} bold />
@@ -144,17 +152,29 @@ function A4Bill({ bill, settings }: { bill: BillData; settings: PrinterSettings 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 12, padding: 32, maxWidth: 700, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, borderBottom: '2px solid #0066CC', paddingBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 'bold', color: '#0066CC' }}>{bill.business_name}</div>
-          {bill.business_address && <div style={{ color: '#555', marginTop: 4 }}>{bill.business_address}</div>}
-          {bill.business_phone && <div style={{ color: '#555' }}>Phone: {bill.business_phone}</div>}
-          {bill.business_gst && <div style={{ color: '#555' }}>GSTIN: {bill.business_gst}</div>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, borderBottom: '2px solid #0066CC', paddingBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          {settings.print_logo && bill.business_logo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={bill.business_logo_url} alt="logo" style={{ width: 64, height: 64, objectFit: 'contain', borderRadius: 6 }} />
+          )}
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 'bold', color: '#0066CC' }}>{bill.business_name}</div>
+            {settings.print_address && bill.business_address && (
+              <div style={{ color: '#555', marginTop: 4 }}>{bill.business_address}</div>
+            )}
+            {settings.print_mobile && bill.business_phone && (
+              <div style={{ color: '#555' }}>Phone: {bill.business_phone}</div>
+            )}
+            {settings.print_gst && bill.business_gst && (
+              <div style={{ color: '#555' }}>GSTIN: {bill.business_gst}</div>
+            )}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>TAX INVOICE</div>
           <div style={{ color: '#555', marginTop: 4 }}>#{bill.invoice_number}</div>
-          <div style={{ color: '#555' }}>Date: {bill.date}</div>
+          <div style={{ color: '#555' }}>{new Date(bill.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
         </div>
       </div>
 
@@ -288,8 +308,8 @@ interface PrintBillProps {
 }
 
 const DEFAULT_SETTINGS: PrinterSettings = {
-  paper_size: '80mm', print_gst: true, print_footer: true,
-  footer_text: 'Thank you for your business!', copies: 1,
+  paper_size: '80mm', print_logo: true, print_address: true, print_mobile: true,
+  print_gst: true, print_footer: true, footer_text: 'Thank you for your business!', copies: 1,
 };
 
 export default function PrintBill({ bill, onClose }: PrintBillProps) {
@@ -301,6 +321,9 @@ export default function PrintBill({ bill, onClose }: PrintBillProps) {
         const s = r.data.data ?? r.data;
         setSettings({
           paper_size: s.paper_size ?? '80mm',
+          print_logo: s.print_logo ?? true,
+          print_address: s.print_address ?? true,
+          print_mobile: s.print_mobile ?? true,
           print_gst: s.print_gst ?? true,
           print_footer: s.print_footer ?? true,
           footer_text: s.footer_text ?? 'Thank you for your business!',
