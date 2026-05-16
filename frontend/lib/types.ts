@@ -110,6 +110,20 @@ export interface Invoice {
   updated_at: string;
 }
 
+export interface Supplier {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  gst_number: string | null;
+  opening_balance: number;
+  due_amount: number;
+  total_purchases: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Expense {
   id: number;
   title: string;
