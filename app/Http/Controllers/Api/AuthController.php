@@ -119,24 +119,32 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        $validated = $request->validate([
-            'email' => 'required|email|exists:users',
-        ]);
+        $request->validate(['email' => 'required|email']);
 
-        // TODO: Send reset link via email
-        return $this->success(null, 'Password reset link sent');
+        // Always returns success to avoid email enumeration
+        $this->authService->forgotPassword($request->input('email'));
+
+        return $this->success(null, 'If that email is registered, a reset link has been sent.');
     }
 
     public function resetPassword(Request $request)
     {
         $validated = $request->validate([
-            'email' => 'required|email',
-            'token' => 'required|string',
+            'email'    => 'required|email',
+            'token'    => 'required|string',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
-        // TODO: Verify token and reset password
-        return $this->success(null, 'Password reset successfully');
+        try {
+            $this->authService->resetPassword(
+                $validated['email'],
+                $validated['token'],
+                $validated['password'],
+            );
+            return $this->success(null, 'Password reset successfully. You can now log in.');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 400);
+        }
     }
 
     public function logout(Request $request)

@@ -151,6 +151,15 @@ Route::prefix('v1')->group(function () {
             // WhatsApp Usage
             Route::get('admin/whatsapp/usage', [Api\Admin\WhatsAppUsageController::class, 'index']);
 
+            // Email Templates
+            Route::get('admin/email-templates', [Api\Admin\EmailTemplateController::class, 'index']);
+            Route::get('admin/email-templates/{emailTemplate}', [Api\Admin\EmailTemplateController::class, 'show']);
+            Route::put('admin/email-templates/{emailTemplate}', [Api\Admin\EmailTemplateController::class, 'update']);
+            Route::get('admin/email-templates/{emailTemplate}/preview', [Api\Admin\EmailTemplateController::class, 'preview']);
+
+            // Promotional Email
+            Route::post('admin/email/send-promotional', [Api\Admin\PromoEmailController::class, 'send']);
+
             // Settings
             Route::get('admin/settings', [Api\Admin\SettingsController::class, 'show']);
             Route::post('admin/settings', [Api\Admin\SettingsController::class, 'update']);

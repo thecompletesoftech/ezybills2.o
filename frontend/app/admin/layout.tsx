@@ -4,16 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-  LayoutDashboard, Building2, CreditCard, Package, LogOut, Menu, X, ChevronLeft,
+  LayoutDashboard, Building2, CreditCard, Package, LogOut, Menu, X, ChevronLeft, Mail, Send,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import { FullPageSpinner } from '@/components/ui/spinner';
 
 const adminNav = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Businesses', href: '/admin/businesses', icon: Building2 },
-  { label: 'Plans', href: '/admin/plans', icon: Package },
-  { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
+  { label: 'Dashboard',        href: '/admin',                  icon: LayoutDashboard },
+  { label: 'Businesses',       href: '/admin/businesses',       icon: Building2 },
+  { label: 'Plans',            href: '/admin/plans',            icon: Package },
+  { label: 'Subscriptions',    href: '/admin/subscriptions',    icon: CreditCard },
+  { label: 'Email Templates',  href: '/admin/email-templates',  icon: Mail },
+  { label: 'Send Promotional', href: '/admin/promotional',      icon: Send },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

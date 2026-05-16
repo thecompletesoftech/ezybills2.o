@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PlanUpdatedMail;
 use App\Models\Business;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class SubscriptionController extends Controller
 {
@@ -65,7 +68,20 @@ class SubscriptionController extends Controller
             'subscription_expires_at' => $validated['end_date'],
         ]);
 
-        $subscription->load(['business:id,name', 'plan:id,name,billing_cycle']);
+        $subscription->load(['business:id,name', 'plan:id,name,billing_cycle,price']);
+
+        // Notify business owner
+        $owner = User::where('business_id', $validated['business_id'])->where('role', 'owner')->first();
+        if ($owner && $owner->email) {
+            $plan = Plan::find($validated['plan_id']);
+            Mail::to($owner->email)->send(new PlanUpdatedMail(
+                userName:     $owner->name,
+                businessName: $subscription->business->name ?? '',
+                planName:     $plan->name ?? '',
+                expiryDate:   date('d M Y', strtotime($validated['end_date'])),
+                billingCycle: $plan->billing_cycle ?? '',
+            ));
+        }
 
         return $this->success($subscription, 'Subscription created', 201);
     }
@@ -102,7 +118,19 @@ class SubscriptionController extends Controller
             'subscription_expires_at' => $newEndDate,
         ]);
 
-        $subscription->load(['business:id,name', 'plan:id,name']);
+        $subscription->load(['business:id,name', 'plan:id,name,billing_cycle']);
+
+        // Notify business owner
+        $owner = User::where('business_id', $subscription->business_id)->where('role', 'owner')->first();
+        if ($owner && $owner->email) {
+            Mail::to($owner->email)->send(new PlanUpdatedMail(
+                userName:     $owner->name,
+                businessName: $subscription->business->name ?? '',
+                planName:     $subscription->plan->name ?? '',
+                expiryDate:   $newEndDate->format('d M Y'),
+                billingCycle: $subscription->plan->billing_cycle ?? '',
+            ));
+        }
 
         return $this->success($subscription, "Subscription extended by {$days} day(s)");
     }
