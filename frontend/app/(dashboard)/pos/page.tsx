@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
 import PrintBill, { type BillData } from '@/components/print-bill';
+import { UpiQr } from '@/components/ui/upi-qr';
 
 interface CartItem {
   product_id: number;
@@ -82,6 +83,11 @@ export default function POSPage() {
   const [showPrintBill, setShowPrintBill] = useState(false);
 
   // --- Queries ---
+  const { data: printerSettings } = useQuery<{ upi_id?: string | null; business_name?: string }>({
+    queryKey: ['printer-settings'],
+    queryFn: () => api.get('/settings/printer').then(r => r.data.data ?? r.data),
+  });
+
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -672,9 +678,27 @@ export default function POSPage() {
               )}
 
               {paymentMode === 'upi' && (
-                <div className="mb-3 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-center">
-                  <p className="text-sm text-purple-700 font-medium">UPI Payment</p>
-                  <p className="text-xs text-purple-500 mt-0.5">Collect {formatCurrency(grandTotal)} via UPI</p>
+                <div className="mb-3 px-3 py-3 bg-purple-50 border border-purple-200 rounded-lg text-center">
+                  <p className="text-sm text-purple-700 font-semibold mb-2">
+                    UPI Payment — {formatCurrency(grandTotal)}
+                  </p>
+                  {printerSettings?.upi_id ? (
+                    <>
+                      <div className="flex justify-center mb-1">
+                        <UpiQr
+                          upiId={printerSettings.upi_id}
+                          businessName="EzyBills"
+                          amount={grandTotal}
+                          size={140}
+                          className="rounded"
+                        />
+                      </div>
+                      <p className="text-xs text-purple-600 font-medium">{printerSettings.upi_id}</p>
+                      <p className="text-xs text-purple-400 mt-0.5">Scan QR to pay</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-purple-500">Collect {formatCurrency(grandTotal)} via UPI</p>
+                  )}
                 </div>
               )}
 

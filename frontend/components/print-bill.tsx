@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { upiQrDataUrl } from '@/components/ui/upi-qr';
 
 interface BillItem {
   name: string;
@@ -40,6 +41,8 @@ interface PrinterSettings {
   print_gst: boolean;
   print_footer: boolean;
   footer_text: string | null;
+  upi_id: string | null;
+  print_upi_qr: boolean;
   copies: number;
 }
 
@@ -55,7 +58,7 @@ function Line({ label, value, bold }: { label: string; value: string; bold?: boo
   );
 }
 
-function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSettings }) {
+function ThermalBill({ bill, settings, upiQrUrl }: { bill: BillData; settings: PrinterSettings; upiQrUrl?: string }) {
   const width = settings.paper_size === '58mm' ? '54mm' : '76mm';
 
   return (
@@ -144,6 +147,16 @@ function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSett
         );
       })()}
 
+      {/* UPI QR */}
+      {settings.print_upi_qr && upiQrUrl && (
+        <div style={{ textAlign: 'center', borderTop: '1px dashed #000', paddingTop: 6, marginTop: 4 }}>
+          <div style={{ fontWeight: 'bold', fontSize: 10, marginBottom: 3 }}>Pay via UPI</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={upiQrUrl} alt="UPI QR" style={{ width: 80, height: 80, display: 'block', margin: '0 auto 3px' }} />
+          {settings.upi_id && <div style={{ fontSize: 9, color: '#333' }}>{settings.upi_id}</div>}
+        </div>
+      )}
+
       {/* Footer */}
       {settings.print_footer && settings.footer_text && (
         <div style={{ textAlign: 'center', borderTop: '1px dashed #000', paddingTop: 4, marginTop: 4 }}>
@@ -154,7 +167,7 @@ function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSett
   );
 }
 
-function A4Bill({ bill, settings }: { bill: BillData; settings: PrinterSettings }) {
+function A4Bill({ bill, settings, upiQrUrl }: { bill: BillData; settings: PrinterSettings; upiQrUrl?: string }) {
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 12, padding: 32, maxWidth: 700, margin: '0 auto' }}>
       {/* Header */}
@@ -303,6 +316,16 @@ function A4Bill({ bill, settings }: { bill: BillData; settings: PrinterSettings 
         );
       })()}
 
+      {/* UPI QR */}
+      {settings.print_upi_qr && upiQrUrl && (
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <div style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 8, color: '#333' }}>Pay via UPI</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={upiQrUrl} alt="UPI QR" style={{ width: 120, height: 120, display: 'block', margin: '0 auto 6px' }} />
+          {settings.upi_id && <div style={{ fontSize: 11, color: '#555' }}>{settings.upi_id}</div>}
+        </div>
+      )}
+
       {/* Footer */}
       {settings.print_footer && settings.footer_text && (
         <div style={{ textAlign: 'center', marginTop: 32, paddingTop: 16, borderTop: '1px solid #eee', color: '#555' }}>
@@ -320,17 +343,19 @@ interface PrintBillProps {
 
 const DEFAULT_SETTINGS: PrinterSettings = {
   paper_size: '80mm', print_logo: true, print_address: true, print_mobile: true,
-  print_gst: true, print_footer: true, footer_text: 'Thank you for your business!', copies: 1,
+  print_gst: true, print_footer: true, footer_text: 'Thank you for your business!',
+  upi_id: null, print_upi_qr: false, copies: 1,
 };
 
 export default function PrintBill({ bill, onClose }: PrintBillProps) {
   const [settings, setSettings] = useState<PrinterSettings>(DEFAULT_SETTINGS);
+  const [upiQrUrl, setUpiQrUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     api.get('/settings/printer')
       .then(r => {
         const s = r.data.data ?? r.data;
-        setSettings({
+        const loaded: PrinterSettings = {
           paper_size: s.paper_size ?? '80mm',
           print_logo: s.print_logo ?? true,
           print_address: s.print_address ?? true,
@@ -338,11 +363,19 @@ export default function PrintBill({ bill, onClose }: PrintBillProps) {
           print_gst: s.print_gst ?? true,
           print_footer: s.print_footer ?? true,
           footer_text: s.footer_text ?? 'Thank you for your business!',
+          upi_id: s.upi_id ?? null,
+          print_upi_qr: s.print_upi_qr ?? false,
           copies: s.copies ?? 1,
-        });
+        };
+        setSettings(loaded);
+        if (loaded.print_upi_qr && loaded.upi_id) {
+          upiQrDataUrl(loaded.upi_id, bill.business_name, bill.grand_total)
+            .then(url => setUpiQrUrl(url))
+            .catch(() => {});
+        }
       })
       .catch(() => {/* use defaults */});
-  }, []);
+  }, [bill.business_name, bill.grand_total]);
 
   const doPrint = () => {
     const printArea = document.getElementById('print-bill-area');
@@ -394,8 +427,8 @@ export default function PrintBill({ bill, onClose }: PrintBillProps) {
         <div className="p-6 bg-gray-100 flex justify-center overflow-x-auto">
           <div id="print-bill-area" className="bg-white shadow-md rounded">
             {settings.paper_size === 'A4'
-              ? <A4Bill bill={bill} settings={settings} />
-              : <ThermalBill bill={bill} settings={settings} />}
+              ? <A4Bill bill={bill} settings={settings} upiQrUrl={upiQrUrl} />
+              : <ThermalBill bill={bill} settings={settings} upiQrUrl={upiQrUrl} />}
           </div>
         </div>
       </div>

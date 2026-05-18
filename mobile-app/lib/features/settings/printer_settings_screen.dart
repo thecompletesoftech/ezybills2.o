@@ -30,6 +30,8 @@ class _PrinterSettingsScreenState
   bool _printGst = true;
   bool _printFooter = true;
   String _footerText = 'Thank you for your business!';
+  String? _upiId;
+  bool _printUpiQr = false;
   int _copies = 1;
 
   final _printerNameCtrl = TextEditingController();
@@ -37,6 +39,7 @@ class _PrinterSettingsScreenState
   final _networkIpCtrl = TextEditingController();
   final _networkPortCtrl = TextEditingController();
   final _footerCtrl = TextEditingController();
+  final _upiCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -51,6 +54,7 @@ class _PrinterSettingsScreenState
     _networkIpCtrl.dispose();
     _networkPortCtrl.dispose();
     _footerCtrl.dispose();
+    _upiCtrl.dispose();
     super.dispose();
   }
 
@@ -73,6 +77,8 @@ class _PrinterSettingsScreenState
         _printGst = s['print_gst'] ?? true;
         _printFooter = s['print_footer'] ?? true;
         _footerText = s['footer_text'] ?? 'Thank you for your business!';
+        _upiId = s['upi_id'] as String?;
+        _printUpiQr = s['print_upi_qr'] ?? false;
         _copies = s['copies'] ?? 1;
 
         _printerNameCtrl.text = _printerName;
@@ -80,6 +86,7 @@ class _PrinterSettingsScreenState
         _networkIpCtrl.text = _networkIp;
         _networkPortCtrl.text = _networkPort.toString();
         _footerCtrl.text = _footerText;
+        _upiCtrl.text = _upiId ?? '';
         _loading = false;
       });
     } catch (_) {
@@ -104,6 +111,8 @@ class _PrinterSettingsScreenState
         'print_gst': _printGst,
         'print_footer': _printFooter,
         'footer_text': _footerCtrl.text.trim().isEmpty ? null : _footerCtrl.text.trim(),
+        'upi_id': _upiCtrl.text.trim().isEmpty ? null : _upiCtrl.text.trim(),
+        'print_upi_qr': _printUpiQr,
         'copies': _copies,
       });
       if (mounted) {
@@ -276,6 +285,24 @@ class _PrinterSettingsScreenState
             AppTextField(label: 'Footer Text', controller: _footerCtrl, maxLines: 2),
             const SizedBox(height: 12),
           ],
+
+          // UPI Payment
+          _section('UPI Payment'),
+          Card(
+            child: Column(
+              children: [
+                _switchTile('Print UPI QR code on invoices', _printUpiQr,
+                    (v) => setState(() => _printUpiQr = v)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppTextField(
+            label: 'UPI ID',
+            controller: _upiCtrl,
+            hint: 'yourname@upi or phone@bank',
+          ),
+          const SizedBox(height: 12),
 
           // Copies
           _section('Number of Copies'),

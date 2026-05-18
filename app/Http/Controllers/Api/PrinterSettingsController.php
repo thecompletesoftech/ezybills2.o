@@ -21,6 +21,7 @@ class PrinterSettingsController extends Controller
                 'print_gst'        => true,
                 'print_footer'     => true,
                 'footer_text'      => 'Thank you for your business!',
+                'print_upi_qr'     => false,
                 'copies'           => 1,
             ]
         );
@@ -43,6 +44,8 @@ class PrinterSettingsController extends Controller
             'print_gst'         => 'nullable|boolean',
             'print_footer'      => 'nullable|boolean',
             'footer_text'       => 'nullable|string|max:500',
+            'upi_id'            => 'nullable|string|max:100',
+            'print_upi_qr'      => 'nullable|boolean',
             'copies'            => 'nullable|integer|min:1|max:5',
         ]);
 

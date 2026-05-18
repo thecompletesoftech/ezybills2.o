@@ -23,7 +23,8 @@ interface PrinterSettings {
   paper_size: string; connection_type: string; printer_name: string | null;
   bluetooth_address: string | null; network_ip: string | null; network_port: number;
   auto_print: boolean; print_logo: boolean; print_address: boolean; print_mobile: boolean;
-  print_gst: boolean; print_footer: boolean; footer_text: string | null; copies: number;
+  print_gst: boolean; print_footer: boolean; footer_text: string | null;
+  upi_id: string | null; print_upi_qr: boolean; copies: number;
 }
 
 function PrinterSettingsCard() {
@@ -134,6 +135,7 @@ function PrinterSettingsCard() {
               { key: 'print_mobile', label: 'Print mobile number' },
               { key: 'print_gst', label: 'Print GST breakdown' },
               { key: 'print_footer', label: 'Print footer message' },
+              { key: 'print_upi_qr', label: 'Print UPI QR code on invoices' },
             ] as { key: keyof PrinterSettings; label: string }[]).map(opt => (
               <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={!!effective[opt.key]}
@@ -154,6 +156,19 @@ function PrinterSettingsCard() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC] resize-none" />
           </div>
         )}
+
+        {/* UPI ID */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">UPI ID</label>
+          <input
+            type="text"
+            placeholder="yourname@upi or phone@bank"
+            value={effective.upi_id ?? ''}
+            onChange={e => set('upi_id', e.target.value.trim() || null)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]"
+          />
+          <p className="text-xs text-gray-400 mt-1">Enter your UPI ID to enable QR code payments. Enable &quot;Print UPI QR&quot; above to include it on bills.</p>
+        </div>
 
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Number of Copies</label>

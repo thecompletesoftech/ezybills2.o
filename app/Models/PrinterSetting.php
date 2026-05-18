@@ -21,6 +21,8 @@ class PrinterSetting extends Model
         'print_gst',
         'print_footer',
         'footer_text',
+        'upi_id',
+        'print_upi_qr',
         'copies',
     ];
 
@@ -31,6 +33,7 @@ class PrinterSetting extends Model
         'print_mobile'  => 'boolean',
         'print_gst'     => 'boolean',
         'print_footer'  => 'boolean',
+        'print_upi_qr'  => 'boolean',
         'network_port'  => 'integer',
         'copies'        => 'integer',
     ];

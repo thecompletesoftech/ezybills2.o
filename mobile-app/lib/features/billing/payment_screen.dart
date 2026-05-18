@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/models/customer_model.dart';
 import '../../core/models/invoice_model.dart';
 import '../../core/providers/business_provider.dart';
@@ -24,7 +25,28 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   final _cashCtrl = TextEditingController();
   final _discountCtrl = TextEditingController(text: '0');
   bool _loading = false;
-  InvoiceModel? _done; // set after successful payment
+  InvoiceModel? _done;
+  String? _upiId;
+  bool _printUpiQr = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrinterSettings();
+  }
+
+  Future<void> _loadPrinterSettings() async {
+    try {
+      final resp = await ApiService.get('/settings/printer');
+      final s = resp['data'] as Map<String, dynamic>? ?? resp;
+      if (mounted) {
+        setState(() {
+          _upiId = s['upi_id'] as String?;
+          _printUpiQr = (s['print_upi_qr'] as bool?) ?? false;
+        });
+      }
+    } catch (_) {}
+  }
 
   static const _methods = [
     ('cash', 'Cash', Icons.money),
@@ -483,6 +505,52 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                 );
               }).toList(),
             ),
+
+            // ── UPI QR ──────────────────────────────────────────────────────
+            if (_method == 'upi') ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'UPI Payment — ${formatCurrency(total)}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_upiId != null && _upiId!.isNotEmpty) ...[
+                      QrImageView(
+                        data: 'upi://pay?pa=${Uri.encodeComponent(_upiId!)}'
+                            '&pn=${Uri.encodeComponent(ref.read(businessProvider).valueOrNull?.name ?? "EzyBills")}'
+                            '&am=${total.toStringAsFixed(2)}&cu=INR',
+                        version: QrVersions.auto,
+                        size: 160,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(_upiId!,
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.purple.shade600)),
+                      Text('Scan QR to pay',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.purple.shade400)),
+                    ] else
+                      Text(
+                        'Collect ${formatCurrency(total)} via UPI.\nAdd your UPI ID in Printer Settings to show QR.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.purple.shade500),
+                      ),
+                  ],
+                ),
+              ),
+            ],
 
             // ── Cash input ──────────────────────────────────────────────────
             if (_method == 'cash') ...[
