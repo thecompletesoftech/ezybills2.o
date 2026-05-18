@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Eye, Ban, CheckCircle, LogIn } from 'lucide-react';
+import { Search, Eye, Ban, CheckCircle, LogIn, UtensilsCrossed } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
@@ -65,6 +65,16 @@ export default function BusinessesPage() {
     mutationFn: (id: number) => api.post(`/admin/businesses/${id}/activate`),
     onSuccess: () => { toast.success('Business activated'); queryClient.invalidateQueries({ queryKey: ['admin-businesses'] }); },
     onError: () => toast.error('Failed to activate'),
+  });
+
+  const toggleRestaurantMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      api.post(`/admin/businesses/${id}/toggle-restaurant`, { enabled }),
+    onSuccess: (_, { enabled }) => {
+      toast.success(`Restaurant / KOT features ${enabled ? 'enabled' : 'disabled'}`);
+      queryClient.invalidateQueries({ queryKey: ['admin-businesses'] });
+    },
+    onError: () => toast.error('Failed to update feature'),
   });
 
   const loginAsMutation = useMutation({
@@ -163,6 +173,13 @@ export default function BusinessesPage() {
                             </button>
                           )}
                           <button
+                            title="Toggle Restaurant / KOT features"
+                            onClick={() => toggleRestaurantMutation.mutate({ id: b.id, enabled: !['restaurant','cafe','food_cart','bakery'].includes(b.business_type) })}
+                            className="p-1.5 text-gray-400 hover:text-orange-500 transition-colors"
+                          >
+                            <UtensilsCrossed size={15} />
+                          </button>
+                          <button
                             title="Login as this business"
                             onClick={() => { if (confirm(`Login as ${b.name}? This will switch your session.`)) loginAsMutation.mutate(b.id); }}
                             className="p-1.5 text-gray-400 hover:text-purple-600 transition-colors"
@@ -198,16 +215,30 @@ export default function BusinessesPage() {
 }
 
 function BusinessDetail({ id, onClose }: { id: number; onClose: () => void }) {
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['admin-business-detail', id],
     queryFn: async () => {
       const res = await api.get(`/admin/businesses/${id}`);
-      return res.data as BusinessRow & { gst_number?: string; address?: string; mobile_number?: string };
+      return res.data as BusinessRow & { gst_number?: string; address?: string; mobile_number?: string; settings?: { enable_restaurant_features?: boolean } };
     },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (enabled: boolean) => api.post(`/admin/businesses/${id}/toggle-restaurant`, { enabled }),
+    onSuccess: (_, enabled) => {
+      toast.success(`Restaurant features ${enabled ? 'enabled' : 'disabled'}`);
+      qc.invalidateQueries({ queryKey: ['admin-business-detail', id] });
+      qc.invalidateQueries({ queryKey: ['admin-businesses'] });
+    },
+    onError: () => toast.error('Failed'),
   });
 
   if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
   if (!data) return <p className="text-center text-gray-400 py-8 text-sm">Failed to load.</p>;
+
+  const kotEnabled = data.settings?.enable_restaurant_features
+    ?? ['restaurant', 'cafe', 'food_cart', 'bakery'].includes(data.business_type);
 
   return (
     <div className="space-y-4">
@@ -222,6 +253,21 @@ function BusinessDetail({ id, onClose }: { id: number; onClose: () => void }) {
         <div><p className="text-xs text-gray-400">Total Users</p><p>{data.user_count}</p></div>
         {data.gst_number && <div className="col-span-2"><p className="text-xs text-gray-400">GST Number</p><p className="font-mono">{data.gst_number}</p></div>}
       </div>
+
+      {/* Restaurant / KOT toggle */}
+      <div className="border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-800">Restaurant / KOT Features</p>
+          <p className="text-xs text-gray-400">Enables tables, kitchen orders, and token queue</p>
+        </div>
+        <button
+          onClick={() => toggleMutation.mutate(!kotEnabled)}
+          disabled={toggleMutation.isPending}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${kotEnabled ? 'bg-[#0066CC]' : 'bg-gray-300'}`}>
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${kotEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
       <div className="flex justify-end">
         <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
       </div>

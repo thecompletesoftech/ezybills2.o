@@ -65,6 +65,9 @@ export default function POSPage() {
   const [customerForm, setCustomerForm] = useState<CustomerForm>(emptyCustomerForm);
   const [customerFormError, setCustomerFormError] = useState('');
 
+  // --- Token ---
+  const [tokenNumber, setTokenNumber] = useState('');
+
   // --- Totals ---
   const [discountPct, setDiscountPct] = useState(0);
 
@@ -211,6 +214,7 @@ export default function POSPage() {
           business_gst: business.gst_number ?? undefined,
           business_phone: business.mobile_number ?? undefined,
           customer_name: selectedCustomer?.name ?? undefined,
+          token_number: tokenNumber || undefined,
           items: cart.map((item) => ({
             name: item.name,
             qty: item.quantity,
@@ -272,6 +276,7 @@ export default function POSPage() {
     setCart([]);
     setSelectedCustomer(null);
     setCustomerSearch('');
+    setTokenNumber('');
     setDiscountPct(0);
     setCashReceived('');
     setPaymentMode('cash');
@@ -538,6 +543,17 @@ export default function POSPage() {
           <div className="border-t border-gray-100 bg-gray-50/50">
             {/* Discount & Tax */}
             <div className="px-4 pt-3 pb-2 space-y-2">
+              {/* Token number */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-500 w-20 flex-shrink-0">Token #</label>
+                <input
+                  type="text"
+                  placeholder="e.g. T-001"
+                  value={tokenNumber}
+                  onChange={(e) => setTokenNumber(e.target.value)}
+                  className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]"
+                />
+              </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">Subtotal</span>
                 <span className="font-medium">{formatCurrency(subtotal)}</span>

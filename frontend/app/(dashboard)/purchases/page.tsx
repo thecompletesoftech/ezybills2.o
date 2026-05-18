@@ -253,7 +253,7 @@ export default function PurchasesPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => setDetailPo(po)}>
+                          <Button variant="outline" size="sm" onClick={() => setDetailPo(po)}>
                             <Eye size={14} />
                           </Button>
                           {po.payment_status !== 'paid' && (
@@ -282,7 +282,7 @@ export default function PurchasesPage() {
       )}
 
       {/* ── ADD PURCHASE MODAL ─────────────────────────────────────────── */}
-      <Modal isOpen={addOpen} onClose={() => { setAddOpen(false); resetForm(); }} title="New Purchase Order" size="xl">
+      <Modal open={addOpen} onClose={() => { setAddOpen(false); resetForm(); }} title="New Purchase Order" size="xl">
         <div className="space-y-4">
           {/* Supplier */}
           <div>
@@ -403,7 +403,7 @@ export default function PurchasesPage() {
 
       {/* ── DETAIL MODAL ──────────────────────────────────────────────────── */}
       {detailPo && (
-        <Modal isOpen={!!detailPo} onClose={() => setDetailPo(null)} title={`Purchase — ${detailPo.purchase_number}`} size="lg">
+        <Modal open={!!detailPo} onClose={() => setDetailPo(null)} title={`Purchase — ${detailPo.purchase_number}`} size="lg">
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-3">
               <div><p className="text-xs text-gray-500">Supplier</p><p className="font-medium">{detailPo.supplier?.name ?? '—'}</p></div>
@@ -455,7 +455,7 @@ export default function PurchasesPage() {
 
       {/* ── PAYMENT MODAL ─────────────────────────────────────────────────── */}
       {payPo && (
-        <Modal isOpen={!!payPo} onClose={() => setPayPo(null)} title={`Record Payment — ${payPo.purchase_number}`} size="sm">
+        <Modal open={!!payPo} onClose={() => setPayPo(null)} title={`Record Payment — ${payPo.purchase_number}`} size="sm">
           <div className="space-y-4">
             <div className="bg-gray-50 rounded-lg p-3 text-sm">
               <p className="text-gray-500">Outstanding</p>

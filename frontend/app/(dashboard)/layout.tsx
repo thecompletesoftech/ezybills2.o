@@ -27,7 +27,7 @@ import { useAuthStore } from '@/lib/auth';
 import { FullPageSpinner } from '@/components/ui/spinner';
 import toast from 'react-hot-toast';
 
-const navItems = [
+const baseNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'POS / New Sale', href: '/pos', icon: ShoppingCart },
   { label: 'Products', href: '/products', icon: Package },
@@ -37,12 +37,13 @@ const navItems = [
   { label: 'Purchases', href: '/purchases', icon: ClipboardList },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Expenses', href: '/expenses', icon: Receipt },
-  { label: 'Restaurant / KOT', href: '/restaurant', icon: UtensilsCrossed },
   { label: 'Reports', href: '/reports', icon: BarChart2 },
   { label: 'Tax Rates', href: '/taxes', icon: Percent },
   { label: 'Bulk Import', href: '/bulk-import', icon: Upload },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
+
+const RESTAURANT_TYPES = ['restaurant', 'cafe', 'food_cart', 'bakery'];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -51,6 +52,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const kotEnabled =
+    business?.settings?.enable_restaurant_features ??
+    RESTAURANT_TYPES.includes(business?.business_type ?? '');
+
+  const navItems = kotEnabled
+    ? [...baseNavItems.slice(0, 9), { label: 'Restaurant / KOT', href: '/restaurant', icon: UtensilsCrossed }, ...baseNavItems.slice(9)]
+    : baseNavItems;
 
   useEffect(() => {
     loadFromStorage();

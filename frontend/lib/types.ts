@@ -6,6 +6,10 @@ export interface User {
   business_id: number;
 }
 
+export interface BusinessSettings {
+  enable_restaurant_features: boolean | null;
+}
+
 export interface Business {
   id: number;
   name: string;
@@ -14,6 +18,7 @@ export interface Business {
   address: string | null;
   mobile_number: string | null;
   logo_url: string | null;
+  settings?: BusinessSettings | null;
 }
 
 export interface Category {

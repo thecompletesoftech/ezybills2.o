@@ -3,15 +3,26 @@
 import { ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+
+const SIZE_CLASS: Record<ModalSize, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+  '2xl': 'max-w-6xl',
+};
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
   className?: string;
+  size?: ModalSize;
 }
 
-export function Modal({ open, onClose, title, children, className = '' }: ModalProps) {
+export function Modal({ open, onClose, title, children, className = '', size = 'md' }: ModalProps) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
@@ -32,7 +43,7 @@ export function Modal({ open, onClose, title, children, className = '' }: ModalP
         onClick={onClose}
       />
       <div
-        className={`relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col ${className}`}
+        className={`relative z-10 bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASS[size]} mx-4 max-h-[90vh] flex flex-col ${className}`}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">

@@ -21,6 +21,7 @@ export interface BillData {
   business_gst?: string;
   business_phone?: string;
   customer_name?: string;
+  token_number?: string;
   items: BillItem[];
   subtotal: number;
   discount_amount: number;
@@ -73,6 +74,11 @@ function ThermalBill({ bill, settings }: { bill: BillData; settings: PrinterSett
 
       <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '3px 0', marginBottom: 4 }}>
         <Line label={`Bill #${bill.invoice_number}`} value={new Date(bill.date).toLocaleDateString('en-IN')} />
+        {bill.token_number && (
+          <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 'bold', margin: '3px 0' }}>
+            Token: {bill.token_number}
+          </div>
+        )}
         {bill.customer_name && <Line label="Customer:" value={bill.customer_name} />}
         <Line label="Mode:" value={bill.payment_mode.toUpperCase()} />
       </div>
@@ -175,6 +181,11 @@ function A4Bill({ bill, settings }: { bill: BillData; settings: PrinterSettings 
           <div style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>TAX INVOICE</div>
           <div style={{ color: '#555', marginTop: 4 }}>#{bill.invoice_number}</div>
           <div style={{ color: '#555' }}>{new Date(bill.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+          {bill.token_number && (
+            <div style={{ marginTop: 6, padding: '4px 10px', background: '#0066CC', color: 'white', borderRadius: 4, fontWeight: 'bold', fontSize: 13 }}>
+              Token: {bill.token_number}
+            </div>
+          )}
         </div>
       </div>
 

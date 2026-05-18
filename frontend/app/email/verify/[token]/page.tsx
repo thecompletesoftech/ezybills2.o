@@ -38,7 +38,7 @@ export default function EmailVerifyTokenPage() {
         setErrorMessage(msg);
         setStatus('error');
       });
-  }, [token, router, setUser]);
+  }, [token, router, setAuth]);
 
   if (status === 'verifying') {
     return (

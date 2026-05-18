@@ -160,7 +160,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = auth()->user();
-        $user->load('business');
+        $user->load('business.settings');
         return $this->success($user, 'User data retrieved');
     }
 }
