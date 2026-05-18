@@ -85,7 +85,7 @@ export default function POSPage() {
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
-      const res = await api.get('/categories');
+      const res = await api.get('/categories', { params: { per_page: 'all', is_active: 1 } });
       return res.data.data ?? res.data;
     },
   });

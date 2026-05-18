@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/models/product_model.dart';
 import '../../core/providers/cart_provider.dart';
+import '../../core/providers/category_provider.dart';
 import '../../core/providers/product_provider.dart';
 import '../../core/widgets/currency_text.dart';
 import '../../core/widgets/empty_state.dart';
@@ -20,6 +21,7 @@ class PosScreen extends ConsumerStatefulWidget {
 class _PosScreenState extends ConsumerState<PosScreen> {
   final _searchController = TextEditingController();
   bool _scanning = false;
+  int? _selectedCategoryId;
 
   @override
   void dispose() {
@@ -125,32 +127,47 @@ class _PosScreenState extends ConsumerState<PosScreen> {
               ),
             ),
 
-          // Products grid
+          // Category rail + products grid
           Expanded(
-            child: productsAsync.when(
-              loading: () => const ShimmerList(),
-              error: (e, _) => ErrorRetry(
-                error: e,
-                onRetry: () =>
-                    ref.read(productProvider.notifier).refresh(),
-              ),
-              data: (products) => products.isEmpty
-                  ? const EmptyState(
-                      message: 'No products found',
-                      icon: Icons.inventory_2_outlined)
-                  : GridView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.5,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: products.length,
-                      itemBuilder: (_, i) =>
-                          _ProductTile(product: products[i], onTap: _addToCart),
+            child: Row(
+              children: [
+                // Left category rail
+                _CategoryRail(
+                  selectedId: _selectedCategoryId,
+                  onSelect: (id) {
+                    setState(() => _selectedCategoryId = id);
+                    ref.read(productProvider.notifier).setCategory(id);
+                  },
+                ),
+                // Right product grid
+                Expanded(
+                  child: productsAsync.when(
+                    loading: () => const ShimmerList(),
+                    error: (e, _) => ErrorRetry(
+                      error: e,
+                      onRetry: () =>
+                          ref.read(productProvider.notifier).refresh(),
                     ),
+                    data: (products) => products.isEmpty
+                        ? const EmptyState(
+                            message: 'No products found',
+                            icon: Icons.inventory_2_outlined)
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(8),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.5,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                            ),
+                            itemCount: products.length,
+                            itemBuilder: (_, i) => _ProductTile(
+                                product: products[i], onTap: _addToCart),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -212,6 +229,124 @@ class _ProductTile extends StatelessWidget {
             ),
           ),
         ),
+      );
+}
+
+class _CategoryRail extends ConsumerWidget {
+  const _CategoryRail({required this.selectedId, required this.onSelect});
+
+  final int? selectedId;
+  final void Function(int?) onSelect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(categoryProvider);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    final categories = categoriesAsync.valueOrNull ?? [];
+
+    return Container(
+      width: 72,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border(right: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        children: [
+          // "All" tile
+          _CategoryTile(
+            label: 'All',
+            imageUrl: null,
+            isSelected: selectedId == null,
+            primaryColor: primaryColor,
+            onTap: () => onSelect(null),
+          ),
+          ...categories.map((cat) => _CategoryTile(
+                label: cat.name,
+                imageUrl: cat.imageUrl,
+                isSelected: selectedId == cat.id,
+                primaryColor: primaryColor,
+                onTap: () => onSelect(cat.id),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile({
+    required this.label,
+    required this.imageUrl,
+    required this.isSelected,
+    required this.primaryColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? imageUrl;
+  final bool isSelected;
+  final Color primaryColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryColor.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: isSelected
+              ? Border.all(color: primaryColor, width: 1.5)
+              : null,
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: imageUrl != null
+                  ? Image.network(
+                      imageUrl!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _iconBox(primaryColor),
+                    )
+                  : _iconBox(primaryColor),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight:
+                    isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? primaryColor : Colors.grey.shade700,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _iconBox(Color color) => Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(Icons.label_outline, size: 20, color: Colors.grey.shade400),
       );
 }
 

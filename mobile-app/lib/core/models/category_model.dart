@@ -1,31 +1,31 @@
 class CategoryModel {
   final int id;
-  final int businessId;
   final String name;
-  final int? parentId;
+  final String? imageUrl;
+  final String? description;
   final bool isActive;
 
   const CategoryModel({
     required this.id,
-    required this.businessId,
     required this.name,
-    this.parentId,
+    this.imageUrl,
+    this.description,
     required this.isActive,
   });
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) => CategoryModel(
         id: json['id'] as int,
-        businessId: json['business_id'] as int,
         name: json['name'] as String,
-        parentId: json['parent_id'] as int?,
+        imageUrl: json['image_url'] as String?,
+        description: json['description'] as String?,
         isActive: (json['is_active'] as bool?) ?? true,
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'business_id': businessId,
         'name': name,
-        'parent_id': parentId,
+        'image_url': imageUrl,
+        'description': description,
         'is_active': isActive,
       };
 }
