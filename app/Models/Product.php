@@ -33,12 +33,14 @@ class Product extends Model
         'unit_conversion',
         'image_url',
         'low_stock_threshold',
+        'tax_type',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'gst_percentage' => 'float',
+        'tax_type' => 'string',
         'purchase_price' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'wholesale_price' => 'decimal:2',

@@ -33,6 +33,7 @@ class _PosScreenState extends ConsumerState<PosScreen> {
           productName: product.name,
           unitPrice: product.salePrice,
           taxPercentage: product.gstPercentage,
+          taxType: product.taxType,
           unitName: product.primaryUnitName,
           barcode: product.barcode,
         );

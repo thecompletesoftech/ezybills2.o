@@ -11,6 +11,7 @@ class ProductModel {
   final String? brandName;
   final String? hsnCode;
   final double gstPercentage;
+  final String taxType; // 'inclusive' or 'exclusive'
   final String? description;
   final double purchasePrice;
   final double salePrice;
@@ -37,6 +38,7 @@ class ProductModel {
     this.brandName,
     this.hsnCode,
     this.gstPercentage = 0,
+    this.taxType = 'exclusive',
     this.description,
     required this.purchasePrice,
     required this.salePrice,
@@ -64,6 +66,7 @@ class ProductModel {
         brandName: json['brand']?['name'] as String?,
         hsnCode: json['hsn_code'] as String?,
         gstPercentage: _toDouble(json['gst_percentage']),
+        taxType: json['tax_type'] as String? ?? 'exclusive',
         description: json['description'] as String?,
         purchasePrice: _toDouble(json['purchase_price']),
         salePrice: _toDouble(json['sale_price']),
@@ -92,6 +95,7 @@ class ProductModel {
         'brand_id': brandId,
         'hsn_code': hsnCode,
         'gst_percentage': gstPercentage,
+        'tax_type': taxType,
         'description': description,
         'purchase_price': purchasePrice,
         'sale_price': salePrice,

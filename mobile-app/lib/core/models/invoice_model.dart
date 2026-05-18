@@ -192,6 +192,7 @@ class CartItem {
   final double unitPrice;
   double quantity;
   final double taxPercentage;
+  final String taxType; // 'inclusive' or 'exclusive'
   double discountAmount;
   final String? unitName;
   final String? barcode;
@@ -202,14 +203,17 @@ class CartItem {
     required this.unitPrice,
     this.quantity = 1,
     this.taxPercentage = 0,
+    this.taxType = 'exclusive',
     this.discountAmount = 0,
     this.unitName,
     this.barcode,
   });
 
   double get lineTotal {
-    final base = unitPrice * quantity;
-    final tax = base * taxPercentage / 100;
-    return base + tax - discountAmount;
+    final taxable = unitPrice * quantity - discountAmount;
+    if (taxType == 'inclusive') {
+      return taxable; // tax already embedded in the selling price
+    }
+    return taxable + taxable * taxPercentage / 100;
   }
 }

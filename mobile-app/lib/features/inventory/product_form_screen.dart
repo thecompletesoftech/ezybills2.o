@@ -36,6 +36,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   File? _imageFile;
   String? _existingImageUrl;
   int? _selectedSupplierId;
+  String _taxType = 'exclusive';
 
   bool get _isEdit => widget.productId != null;
 
@@ -60,6 +61,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         _lowStockController.text = '${data['low_stock_threshold'] ?? 0}';
         _descController.text = data['description'] as String? ?? '';
         _existingImageUrl = data['image_url'] as String?;
+        _taxType = data['tax_type'] as String? ?? 'exclusive';
       });
     } catch (_) {}
   }
@@ -94,6 +96,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'purchase_price':
             double.tryParse(_purchasePriceController.text) ?? 0.0,
         'gst_percentage': double.tryParse(_gstController.text) ?? 0.0,
+        'tax_type': _taxType,
         'opening_stock': double.tryParse(_stockController.text) ?? 0.0,
         'low_stock_threshold':
             double.tryParse(_lowStockController.text) ?? 0.0,
@@ -247,6 +250,44 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Tax Type toggle
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tax Type',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black87)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TaxTypeButton(
+                          label: 'Exclusive',
+                          subtitle: 'Tax added on top',
+                          selected: _taxType == 'exclusive',
+                          onTap: () => setState(() => _taxType = 'exclusive'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _TaxTypeButton(
+                          label: 'Inclusive',
+                          subtitle: 'Tax inside price',
+                          selected: _taxType == 'inclusive',
+                          onTap: () => setState(() => _taxType = 'inclusive'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _taxType == 'exclusive'
+                        ? 'e.g. ₹100 + 18% GST → customer pays ₹118'
+                        : 'e.g. ₹118 MRP already includes 18% GST',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               suppliersAsync.when(
                 loading: () => const LinearProgressIndicator(),
                 error: (_, __) => const SizedBox.shrink(),
@@ -348,6 +389,58 @@ class _ImagePicker extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _TaxTypeButton extends StatelessWidget {
+  const _TaxTypeButton({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF0066CC) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? const Color(0xFF0066CC) : Colors.grey.shade300,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : Colors.black87,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: selected ? Colors.white70 : Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

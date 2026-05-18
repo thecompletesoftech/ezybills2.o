@@ -23,13 +23,14 @@ function formatCurrency(amount: number) {
 interface ProductFormData {
   name: string; sku: string; category_id: string; unit_id: string; supplier_id: string;
   selling_price: string; purchase_price: string; stock_quantity: string;
-  gst_rate: string; low_stock_threshold: string; description: string; is_active: boolean;
+  gst_rate: string; tax_type: 'inclusive' | 'exclusive';
+  low_stock_threshold: string; description: string; is_active: boolean;
 }
 
 const emptyForm: ProductFormData = {
   name: '', sku: '', category_id: '', unit_id: '', supplier_id: '',
   selling_price: '', purchase_price: '', stock_quantity: '', gst_rate: '0',
-  low_stock_threshold: '5', description: '', is_active: true,
+  tax_type: 'exclusive', low_stock_threshold: '5', description: '', is_active: true,
 };
 
 function productToForm(p: Product): ProductFormData {
@@ -39,6 +40,7 @@ function productToForm(p: Product): ProductFormData {
     supplier_id: (p as Product & { supplier_id?: number }).supplier_id ? String((p as Product & { supplier_id?: number }).supplier_id) : '',
     selling_price: String(p.selling_price), purchase_price: String(p.purchase_price),
     stock_quantity: String(p.stock_quantity), gst_rate: String(p.gst_rate ?? 0),
+    tax_type: p.tax_type ?? 'exclusive',
     low_stock_threshold: String((p as Product & { low_stock_threshold?: number }).low_stock_threshold ?? 5),
     description: p.description ?? '', is_active: p.is_active,
   };
@@ -248,6 +250,7 @@ export default function ProductsPage() {
         selling_price: parseFloat(formData.selling_price),
         purchase_price: parseFloat(formData.purchase_price) || 0,
         gst_rate: parseFloat(formData.gst_rate) || 0,
+        tax_type: formData.tax_type,
         low_stock_threshold: parseFloat(formData.low_stock_threshold) || 0,
         description: formData.description || null,
         is_active: formData.is_active,
@@ -490,11 +493,36 @@ export default function ProductsPage() {
                 {taxRates.filter(t => t.is_active).map(t => (
                   <option key={t.id} value={t.rate}>{t.name} ({t.rate}%)</option>
                 ))}
-                {/* Fallback standard rates if no custom ones */}
                 {taxRates.length === 0 && [5, 12, 18, 28].map(r => (
                   <option key={r} value={r}>GST {r}%</option>
                 ))}
               </select>
+            </div>
+
+            {/* Tax Type */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">Tax Type</label>
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, tax_type: 'exclusive' }))}
+                  className={`flex-1 px-3 py-2 transition-colors ${form.tax_type === 'exclusive' ? 'bg-[#0066CC] text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Exclusive
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, tax_type: 'inclusive' }))}
+                  className={`flex-1 px-3 py-2 border-l border-gray-300 transition-colors ${form.tax_type === 'inclusive' ? 'bg-[#0066CC] text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Inclusive
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {form.tax_type === 'exclusive'
+                  ? 'Tax added on top of selling price (e.g. ₹100 + 18% GST = ₹118)'
+                  : 'Tax already included in selling price (e.g. ₹118 MRP includes 18% GST)'}
+              </p>
             </div>
 
             <Input label="Selling Price *" type="number" step="0.01" min="0" placeholder="0.00"

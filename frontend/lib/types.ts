@@ -24,7 +24,9 @@ export interface Business {
 export interface Category {
   id: number;
   name: string;
+  image_url?: string | null;
   description?: string | null;
+  is_active: boolean;
 }
 
 export interface Brand {
@@ -54,6 +56,7 @@ export interface Product {
   brand?: Brand;
   unit?: Unit;
   gst_rate: number;
+  tax_type: 'inclusive' | 'exclusive';
   is_active: boolean;
   created_at: string;
   updated_at: string;

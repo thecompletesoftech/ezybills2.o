@@ -32,24 +32,38 @@ class BillingService
 
         foreach ($data['items'] as $item) {
             $product = \App\Models\Product::find($item['product_id']);
-            
-            $itemSubtotal = $item['quantity'] * $item['unit_price'];
-            $itemDiscount = $itemSubtotal * ($item['discount_percentage'] ?? 0) / 100;
-            $itemTax = ($itemSubtotal - $itemDiscount) * ($product->gst_percentage ?? 0) / 100;
+
+            $gstRate  = (float) ($product->gst_percentage ?? 0);
+            $taxType  = $product->tax_type ?? 'exclusive';
+
+            $itemSubtotal  = $item['quantity'] * $item['unit_price'];
+            $itemDiscount  = $itemSubtotal * ($item['discount_percentage'] ?? 0) / 100;
+            $taxableBase   = $itemSubtotal - $itemDiscount;
+
+            if ($taxType === 'inclusive') {
+                // Tax is embedded in the price — extract it
+                $itemTax   = $gstRate > 0 ? $taxableBase * $gstRate / (100 + $gstRate) : 0;
+                $lineTotal = $taxableBase;       // no extra tax added
+            } else {
+                // Tax added on top of the price
+                $itemTax   = $taxableBase * $gstRate / 100;
+                $lineTotal = $taxableBase + $itemTax;
+            }
 
             InvoiceItem::create([
-                'invoice_id' => $invoice->id,
-                'product_id' => $item['product_id'],
-                'quantity' => $item['quantity'],
-                'unit_price' => $item['unit_price'],
+                'invoice_id'          => $invoice->id,
+                'product_id'          => $item['product_id'],
+                'quantity'            => $item['quantity'],
+                'unit_price'          => $item['unit_price'],
                 'discount_percentage' => $item['discount_percentage'] ?? 0,
-                'discount_amount' => $itemDiscount,
-                'tax_percentage' => $product->gst_percentage,
-                'tax_amount' => $itemTax,
-                'line_total' => $itemSubtotal - $itemDiscount + $itemTax,
+                'discount_amount'     => $itemDiscount,
+                'tax_percentage'      => $gstRate,
+                'tax_type'            => $taxType,
+                'tax_amount'          => $itemTax,
+                'line_total'          => $lineTotal,
             ]);
 
-            $subtotal += $itemSubtotal;
+            $subtotal  += $itemSubtotal;
             $taxAmount += $itemTax;
 
             // Update stock
@@ -157,11 +171,21 @@ class BillingService
 
             if (!$original) continue;
 
-            $qty        = min((float) $item['quantity'], (float) $original->quantity);
-            $lineBase   = $qty * $original->unit_price;
-            $lineDisc   = $lineBase * ($original->discount_percentage ?? 0) / 100;
-            $lineTax    = ($lineBase - $lineDisc) * ($original->tax_percentage ?? 0) / 100;
-            $lineTotal  = $lineBase - $lineDisc + $lineTax;
+            $qty      = min((float) $item['quantity'], (float) $original->quantity);
+            $gstRate  = (float) ($original->tax_percentage ?? 0);
+            $taxType  = $original->tax_type ?? 'exclusive';
+
+            $lineBase  = $qty * $original->unit_price;
+            $lineDisc  = $lineBase * ($original->discount_percentage ?? 0) / 100;
+            $taxableBase = $lineBase - $lineDisc;
+
+            if ($taxType === 'inclusive') {
+                $lineTax  = $gstRate > 0 ? $taxableBase * $gstRate / (100 + $gstRate) : 0;
+                $lineTotal = $taxableBase;
+            } else {
+                $lineTax  = $taxableBase * $gstRate / 100;
+                $lineTotal = $taxableBase + $lineTax;
+            }
 
             InvoiceItem::create([
                 'invoice_id'          => $returnInvoice->id,
@@ -170,7 +194,8 @@ class BillingService
                 'unit_price'          => $original->unit_price,
                 'discount_percentage' => $original->discount_percentage,
                 'discount_amount'     => $lineDisc,
-                'tax_percentage'      => $original->tax_percentage,
+                'tax_percentage'      => $gstRate,
+                'tax_type'            => $taxType,
                 'tax_amount'          => $lineTax,
                 'line_total'          => $lineTotal,
             ]);

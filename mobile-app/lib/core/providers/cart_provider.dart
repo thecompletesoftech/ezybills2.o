@@ -20,15 +20,23 @@ class CartState {
   double get subtotal =>
       items.fold(0, (sum, item) => sum + item.unitPrice * item.quantity);
 
-  double get taxTotal =>
-      items.fold(0, (sum, item) =>
-          sum + (item.unitPrice * item.quantity * item.taxPercentage / 100));
+  // Tax shown on receipt (extracted for inclusive, added for exclusive)
+  double get taxTotal => items.fold(0.0, (sum, item) {
+    final base = item.unitPrice * item.quantity - item.discountAmount;
+    if (item.taxType == 'inclusive') {
+      return item.taxPercentage > 0
+          ? sum + base * item.taxPercentage / (100 + item.taxPercentage)
+          : sum;
+    }
+    return sum + base * item.taxPercentage / 100;
+  });
 
   double get itemDiscountTotal =>
       items.fold(0, (sum, item) => sum + item.discountAmount);
 
+  // Actual amount the customer pays
   double get total =>
-      subtotal + taxTotal - itemDiscountTotal - discountAmount;
+      items.fold(0.0, (sum, item) => sum + item.lineTotal) - discountAmount;
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity.toInt());
 
@@ -59,6 +67,7 @@ class CartNotifier extends StateNotifier<CartState> {
     required String productName,
     required double unitPrice,
     double taxPercentage = 0,
+    String taxType = 'exclusive',
     String? unitName,
     String? barcode,
   }) {
@@ -75,6 +84,7 @@ class CartNotifier extends StateNotifier<CartState> {
           productName: productName,
           unitPrice: unitPrice,
           taxPercentage: taxPercentage,
+          taxType: taxType,
           unitName: unitName,
           barcode: barcode,
         ),
@@ -143,17 +153,24 @@ extension CartStatePayload on CartState {
         'notes': notes,
         'table_id': tableId,
         'items': items
-            .map((item) => {
-                  'product_id': item.productId,
-                  'product_name': item.productName,
-                  'quantity': item.quantity,
-                  'unit_price': item.unitPrice,
-                  'tax_percentage': item.taxPercentage,
-                  'tax_amount':
-                      item.unitPrice * item.quantity * item.taxPercentage / 100,
-                  'discount_amount': item.discountAmount,
-                  'total': item.lineTotal,
-                })
+            .map((item) {
+              final taxable = item.unitPrice * item.quantity - item.discountAmount;
+              final itemTax = item.taxType == 'inclusive'
+                  ? (item.taxPercentage > 0
+                      ? taxable * item.taxPercentage / (100 + item.taxPercentage)
+                      : 0.0)
+                  : taxable * item.taxPercentage / 100;
+              return {
+                'product_id': item.productId,
+                'product_name': item.productName,
+                'quantity': item.quantity,
+                'unit_price': item.unitPrice,
+                'tax_percentage': item.taxPercentage,
+                'tax_amount': itemTax,
+                'discount_amount': item.discountAmount,
+                'total': item.lineTotal,
+              };
+            })
             .toList(),
       };
 }

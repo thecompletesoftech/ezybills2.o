@@ -31,6 +31,7 @@ interface CartItem {
   quantity: number;
   unit: string;
   gst_rate: number;
+  tax_type: 'inclusive' | 'exclusive';
 }
 
 type PaymentMode = 'cash' | 'card' | 'upi' | 'split';
@@ -145,6 +146,7 @@ export default function POSPage() {
           quantity: 1,
           unit: product.unit?.short_name ?? 'pcs',
           gst_rate: product.gst_rate ?? 0,
+          tax_type: product.tax_type ?? 'exclusive',
         },
       ];
     });
@@ -167,17 +169,32 @@ export default function POSPage() {
     setCart((prev) => prev.filter((item) => item.product_id !== product_id));
   };
 
-  // --- Totals calculation (GST auto-calculated per product) ---
+  // --- Totals calculation ---
+  // subtotal = raw sum of displayed prices (inclusive items already have tax inside)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discountAmount = subtotal * (discountPct / 100);
-  const afterDiscount = subtotal - discountAmount;
-  // Each item's GST is applied to its after-discount share
+
+  // Per-item tax (extracted for inclusive, added for exclusive)
   const taxAmount = cart.reduce((sum, item) => {
     const itemBase = item.price * item.quantity;
-    const itemDiscount = itemBase * (discountPct / 100);
-    return sum + (itemBase - itemDiscount) * (item.gst_rate / 100);
+    const taxableBase = itemBase * (1 - discountPct / 100);
+    if (item.tax_type === 'inclusive') {
+      return item.gst_rate > 0
+        ? sum + taxableBase * item.gst_rate / (100 + item.gst_rate)
+        : sum;
+    }
+    return sum + taxableBase * item.gst_rate / 100;
   }, 0);
-  const grandTotal = afterDiscount + taxAmount;
+
+  // grandTotal: for exclusive items tax is added; for inclusive it's already in price
+  const grandTotal = cart.reduce((sum, item) => {
+    const itemBase = item.price * item.quantity;
+    const taxableBase = itemBase * (1 - discountPct / 100);
+    if (item.tax_type === 'inclusive') {
+      return sum + taxableBase; // tax already inside
+    }
+    return sum + taxableBase + taxableBase * item.gst_rate / 100;
+  }, 0);
   const changeAmount = parseFloat(cashReceived || '0') - grandTotal;
 
   // --- Invoice mutations ---
