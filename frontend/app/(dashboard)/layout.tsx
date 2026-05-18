@@ -20,6 +20,8 @@ import {
   ChevronDown,
   Percent,
   Upload,
+  ClipboardList,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import { FullPageSpinner } from '@/components/ui/spinner';
@@ -32,8 +34,10 @@ const navItems = [
   { label: 'Inventory', href: '/inventory', icon: Warehouse },
   { label: 'Customers', href: '/customers', icon: Users },
   { label: 'Suppliers', href: '/suppliers', icon: Truck },
+  { label: 'Purchases', href: '/purchases', icon: ClipboardList },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Expenses', href: '/expenses', icon: Receipt },
+  { label: 'Restaurant / KOT', href: '/restaurant', icon: UtensilsCrossed },
   { label: 'Reports', href: '/reports', icon: BarChart2 },
   { label: 'Tax Rates', href: '/taxes', icon: Percent },
   { label: 'Bulk Import', href: '/bulk-import', icon: Upload },

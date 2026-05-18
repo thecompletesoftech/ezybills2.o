@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/providers/business_provider.dart';
+import '../../core/providers/business_provider.dart' show kotEnabledProvider;
 import '../reports/reports_screen.dart';
 import '../suppliers/supplier_list_screen.dart';
 import '../expenses/expense_list_screen.dart';
 import 'settings_screen.dart';
 import 'tax_rates_screen.dart';
+import '../restaurant/table_screen.dart';
+import '../restaurant/kot_screen.dart';
+import '../restaurant/token_screen.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -14,8 +17,7 @@ class MoreScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).valueOrNull;
-    final business = ref.watch(businessProvider).valueOrNull;
-    final isRestaurant = business?.isRestaurant ?? false;
+    final kotEnabled = ref.watch(kotEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('More')),
@@ -55,17 +57,25 @@ class MoreScreen extends ConsumerWidget {
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const TaxRatesScreen())),
           ),
-          if (isRestaurant) ...[
+          if (kotEnabled) ...[
             const Divider(),
             _MenuItem(
               icon: Icons.table_bar,
               label: 'Table Management',
-              onTap: () {},
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TableScreen())),
             ),
             _MenuItem(
               icon: Icons.kitchen,
               label: 'Kitchen Orders (KOT)',
-              onTap: () {},
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const KotScreen())),
+            ),
+            _MenuItem(
+              icon: Icons.confirmation_number_outlined,
+              label: 'Token Queue',
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TokenScreen())),
             ),
           ],
           const Divider(),

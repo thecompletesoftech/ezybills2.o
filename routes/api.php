@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api;
 
@@ -101,9 +100,11 @@ Route::prefix('v1')->group(function () {
 
             Route::apiResource('kot', Api\KotController::class);
             Route::post('kot/{kot}/complete', [Api\KotController::class, 'complete']);
+            Route::post('kot/{kot}/cancel', [Api\KotController::class, 'destroy']);
 
             Route::apiResource('tokens', Api\TokenController::class);
             Route::post('tokens/{token}/ready', [Api\TokenController::class, 'markReady']);
+            Route::post('tokens/{token}/served', [Api\TokenController::class, 'update']);
         });
 
         // Employees
@@ -141,6 +142,7 @@ Route::prefix('v1')->group(function () {
             Route::post('admin/businesses/{business}/suspend', [Api\Admin\BusinessManagementController::class, 'suspend']);
             Route::post('admin/businesses/{business}/activate', [Api\Admin\BusinessManagementController::class, 'activate']);
             Route::post('admin/businesses/{business}/login-as', [Api\Admin\BusinessManagementController::class, 'loginAsCustomer']);
+            Route::post('admin/businesses/{business}/toggle-restaurant', [Api\Admin\BusinessManagementController::class, 'toggleRestaurantFeatures']);
 
             // Subscription Management
             Route::apiResource('admin/plans', Api\Admin\PlanController::class);

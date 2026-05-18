@@ -16,6 +16,7 @@ class BusinessModel {
   final bool isActive;
   final int? subscriptionPlanId;
   final DateTime? subscriptionExpiresAt;
+  final bool kotEnabled;
 
   const BusinessModel({
     required this.id,
@@ -35,6 +36,7 @@ class BusinessModel {
     required this.isActive,
     this.subscriptionPlanId,
     this.subscriptionExpiresAt,
+    this.kotEnabled = false,
   });
 
   factory BusinessModel.fromJson(Map<String, dynamic> json) => BusinessModel(
@@ -57,6 +59,8 @@ class BusinessModel {
         subscriptionExpiresAt: json['subscription_expires_at'] != null
             ? DateTime.tryParse(json['subscription_expires_at'] as String)
             : null,
+        kotEnabled: (json['settings']?['enable_restaurant_features'] as bool?) ??
+            _defaultKotEnabled(json['business_type'] as String? ?? ''),
       );
 
   Map<String, dynamic> toJson() => {
@@ -78,6 +82,13 @@ class BusinessModel {
         'subscription_plan_id': subscriptionPlanId,
         'subscription_expires_at': subscriptionExpiresAt?.toIso8601String(),
       };
+
+  static bool _defaultKotEnabled(String businessType) => const [
+        'restaurant',
+        'cafe',
+        'food_cart',
+        'bakery',
+      ].contains(businessType);
 
   bool get isRestaurant => const [
         'restaurant',

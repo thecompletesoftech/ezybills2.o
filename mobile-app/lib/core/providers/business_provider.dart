@@ -35,8 +35,8 @@ final businessProvider =
   BusinessNotifier.new,
 );
 
-// Convenience: current business type
-final isRestaurantProvider = Provider<bool>((ref) {
+// True when admin has enabled KOT/restaurant features for this business
+final kotEnabledProvider = Provider<bool>((ref) {
   final business = ref.watch(businessProvider).valueOrNull;
-  return business?.isRestaurant ?? false;
+  return business?.kotEnabled ?? false;
 });

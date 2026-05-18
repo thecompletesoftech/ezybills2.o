@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\BusinessSettings;
 use App\Models\Subscription;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class BusinessManagementController extends Controller
@@ -127,6 +127,25 @@ class BusinessManagementController extends Controller
         $business->update(['is_active' => true]);
 
         return $this->success(null, 'Business activated');
+    }
+
+    public function toggleRestaurantFeatures(Request $request, Business $business)
+    {
+        $data = $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        BusinessSettings::updateOrCreate(
+            ['business_id' => $business->id],
+            ['enable_restaurant_features' => $data['enabled']]
+        );
+
+        $status = $data['enabled'] ? 'enabled' : 'disabled';
+
+        return $this->success(
+            ['enable_restaurant_features' => $data['enabled']],
+            "Restaurant / KOT features {$status} for {$business->name}"
+        );
     }
 
     public function loginAsCustomer(Business $business)
