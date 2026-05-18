@@ -123,7 +123,7 @@ class _SupplierListScreenState extends ConsumerState<SupplierListScreen> {
                       );
                     }
                   } finally {
-                    setModalState(() => loading = false);
+                    if (ctx.mounted) setModalState(() => loading = false);
                   }
                 },
               ),

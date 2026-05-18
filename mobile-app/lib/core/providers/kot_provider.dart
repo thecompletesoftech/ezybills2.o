@@ -14,7 +14,7 @@ class KotNotifier extends AsyncNotifier<List<KotModel>> {
     if (_statusFilter != null) params['status'] = _statusFilter;
     if (_tableFilter != null) params['table_id'] = _tableFilter;
     final res = await ApiService.get('/kot', queryParameters: params);
-    return (res['data'] as List).map((e) => KotModel.fromJson(e)).toList();
+    return (res['data'] as List? ?? []).map((e) => KotModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> refresh() async {

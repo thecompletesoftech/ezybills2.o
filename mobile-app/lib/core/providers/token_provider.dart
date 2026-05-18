@@ -12,7 +12,7 @@ class TokenNotifier extends AsyncNotifier<List<TokenModel>> {
     final params = <String, dynamic>{};
     if (_statusFilter != null) params['status'] = _statusFilter;
     final res = await ApiService.get('/tokens', queryParameters: params);
-    return (res['data'] as List).map((e) => TokenModel.fromJson(e)).toList();
+    return (res['data'] as List? ?? []).map((e) => TokenModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> refresh() async {

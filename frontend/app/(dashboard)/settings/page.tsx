@@ -236,9 +236,12 @@ export default function SettingsPage() {
   const { data, isLoading } = useQuery<Business>({
     queryKey: ['business'],
     queryFn: async () => {
-      const res = await api.get('/business');
+      const id = business?.id;
+      if (!id) return null as unknown as Business;
+      const res = await api.get(`/business/${id}`);
       return res.data;
     },
+    enabled: !!business?.id,
   });
 
   const {
@@ -427,12 +430,27 @@ export default function SettingsPage() {
                 error={errors.name?.message}
                 {...register('name')}
               />
-              <Input
-                label="Business Type"
-                placeholder="e.g. Retail, Restaurant"
-                error={errors.business_type?.message}
-                {...register('business_type')}
-              />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Business Type</label>
+                <select
+                  {...register('business_type')}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0066CC]/30 focus:border-[#0066CC]"
+                >
+                  <option value="">Select type...</option>
+                  <option value="retail">Retail</option>
+                  <option value="grocery">Grocery</option>
+                  <option value="restaurant">Restaurant</option>
+                  <option value="cafe">Cafe</option>
+                  <option value="food_cart">Food Cart</option>
+                  <option value="bakery">Bakery</option>
+                  <option value="mobile_shop">Mobile Shop</option>
+                  <option value="electronics">Electronics</option>
+                  <option value="fashion">Fashion</option>
+                  <option value="medical">Medical</option>
+                  <option value="hardware">Hardware</option>
+                </select>
+                {errors.business_type && <p className="text-xs text-red-500">{errors.business_type.message}</p>}
+              </div>
               <Input
                 label="GST Number"
                 placeholder="22AAAAA0000A1Z5"

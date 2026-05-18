@@ -8,7 +8,26 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
   Future<UserModel?> build() async {
     final token = LocalStorageService.getToken();
     if (token == null) return null;
-    return LocalStorageService.getUser();
+
+    try {
+      // Verify token with server and get fresh user data
+      final response = await ApiService.get('/auth/me');
+      final data = (response['data'] ?? response) as Map<String, dynamic>;
+      final user = UserModel.fromJson(data);
+      await LocalStorageService.saveUser(user);
+      return user;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        // Token expired — clear session and go to login
+        await LocalStorageService.clearToken();
+        await LocalStorageService.clearUser();
+        return null;
+      }
+      // Network error (offline) — return cached user so app still works
+      return LocalStorageService.getUser();
+    } catch (_) {
+      return LocalStorageService.getUser();
+    }
   }
 
   Future<void> login({required String email, required String password}) async {
@@ -18,9 +37,9 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         'email': email,
         'password': password,
       });
-      final token = response['token'] as String;
-      final user = UserModel.fromJson(
-          (response['user'] ?? response) as Map<String, dynamic>);
+      final data = (response['data'] ?? response) as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       await LocalStorageService.saveToken(token);
       await LocalStorageService.saveUser(user.copyWith(token: token));
       return user;
@@ -34,9 +53,9 @@ class AuthNotifier extends AsyncNotifier<UserModel?> {
         'phone': phone,
         'otp': otp,
       });
-      final token = response['token'] as String;
-      final user = UserModel.fromJson(
-          (response['user'] ?? response) as Map<String, dynamic>);
+      final data = (response['data'] ?? response) as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       await LocalStorageService.saveToken(token);
       await LocalStorageService.saveUser(user.copyWith(token: token));
       return user;

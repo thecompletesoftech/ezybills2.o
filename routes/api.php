@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
         Route::get('business/{business}/settings', [Api\BusinessSettingsController::class, 'show']);
 
         // Dashboard
+        Route::get('dashboard', [Api\DashboardController::class, 'index']);
         Route::get('dashboard/summary', [Api\DashboardController::class, 'summary']);
         Route::get('dashboard/charts', [Api\DashboardController::class, 'charts']);
 

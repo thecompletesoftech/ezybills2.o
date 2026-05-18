@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_config.dart';
+import 'local_storage_service.dart';
 
 class ApiException implements Exception {
   ApiException({required this.message, this.statusCode});
@@ -34,7 +35,13 @@ class ApiService {
         }
         handler.next(options);
       },
-      onError: (error, handler) {
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401) {
+          // Token expired mid-session — clear local credentials
+          // The authProvider will rebuild and show LoginScreen on next state change
+          await LocalStorageService.clearToken();
+          await LocalStorageService.clearUser();
+        }
         handler.next(error);
       },
     ));

@@ -57,6 +57,7 @@ class BusinessController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
+            'business_type' => 'sometimes|in:retail,grocery,mobile_shop,electronics,fashion,medical,hardware,cafe,restaurant,food_cart,bakery',
             'gst_number' => 'nullable|string',
             'address' => 'nullable|string',
             'mobile_number' => 'nullable|string',

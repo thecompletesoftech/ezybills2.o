@@ -8,8 +8,8 @@ class TableNotifier extends AsyncNotifier<List<RestaurantTableModel>> {
 
   Future<List<RestaurantTableModel>> _fetch() async {
     final res = await ApiService.get('/tables');
-    return (res['data'] as List)
-        .map((e) => RestaurantTableModel.fromJson(e))
+    return (res['data'] as List? ?? [])
+        .map((e) => RestaurantTableModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

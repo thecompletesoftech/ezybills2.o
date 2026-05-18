@@ -26,9 +26,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
     try {
       final list = await ApiService.getList('/expenses');
+      if (!mounted) return;
       setState(() {
         _expenses = list
             .map((e) => ExpenseModel.fromJson(e as Map<String, dynamic>))
@@ -36,7 +37,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       });
     } catch (_) {
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

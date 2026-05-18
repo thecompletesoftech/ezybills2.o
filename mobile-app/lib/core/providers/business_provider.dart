@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/business_model.dart';
 import '../services/api_service.dart';
 import '../services/local_storage_service.dart';
+import 'auth_provider.dart';
 
 class BusinessNotifier extends AsyncNotifier<BusinessModel?> {
   @override
@@ -10,8 +11,12 @@ class BusinessNotifier extends AsyncNotifier<BusinessModel?> {
   }
 
   Future<void> loadBusiness() async {
+    final user = ref.read(authProvider).valueOrNull;
+    final businessId = user?.businessId;
+    if (businessId == null) return;
+
     state = await AsyncValue.guard(() async {
-      final response = await ApiService.get('/business');
+      final response = await ApiService.get('/business/$businessId');
       final data = response['data'] as Map<String, dynamic>? ?? response;
       final business = BusinessModel.fromJson(data);
       await LocalStorageService.saveBusiness(business);
@@ -20,8 +25,11 @@ class BusinessNotifier extends AsyncNotifier<BusinessModel?> {
   }
 
   Future<void> updateBusiness(Map<String, dynamic> payload) async {
+    final id = state.valueOrNull?.id;
+    if (id == null) return;
+
     state = await AsyncValue.guard(() async {
-      final response = await ApiService.put('/business', data: payload);
+      final response = await ApiService.put('/business/$id', data: payload);
       final data = response['data'] as Map<String, dynamic>? ?? response;
       final business = BusinessModel.fromJson(data);
       await LocalStorageService.saveBusiness(business);

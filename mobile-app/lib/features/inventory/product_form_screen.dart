@@ -48,6 +48,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Future<void> _loadProduct() async {
     try {
       final response = await ApiService.get('/products/${widget.productId}');
+      if (!mounted) return;
       final data = response['data'] as Map<String, dynamic>? ?? response;
       setState(() {
         _nameController.text = data['name'] as String? ?? '';

@@ -68,8 +68,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             phone: widget.phone,
             otp: _otp,
           );
+      if (!mounted) return;
       final error = ref.read(authProvider).error;
-      if (error != null && mounted) {
+      if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(error.toString()), backgroundColor: Colors.red),

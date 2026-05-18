@@ -57,6 +57,7 @@ class _PrinterSettingsScreenState
   Future<void> _load() async {
     try {
       final data = await ApiService.get('/settings/printer');
+      if (!mounted) return;
       final s = data['data'] ?? data;
       setState(() {
         _paperSize = s['paper_size'] ?? '80mm';
@@ -82,7 +83,7 @@ class _PrinterSettingsScreenState
         _loading = false;
       });
     } catch (_) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
