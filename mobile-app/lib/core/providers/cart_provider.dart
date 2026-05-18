@@ -142,35 +142,40 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 extension CartStatePayload on CartState {
-  Map<String, dynamic> toInvoicePayload() => {
+  // Builds the POST /invoices payload. payment_mode and payment_status are
+  // added by the caller (payment screen), not here.
+  Map<String, dynamic> toInvoicePayload({double extraDiscountAmount = 0}) => {
         'customer_id': customer?.id,
-        'invoice_type': 'sale',
-        'invoice_date': DateTime.now().toIso8601String(),
-        'subtotal': subtotal,
-        'tax_amount': taxTotal,
-        'discount_amount': discountAmount + itemDiscountTotal,
-        'total_amount': total,
-        'notes': notes,
-        'table_id': tableId,
+        'invoice_type': 'retail_invoice',
+        if (discountAmount + extraDiscountAmount > 0)
+          'discount_amount': discountAmount + extraDiscountAmount,
+        if (notes != null && notes!.isNotEmpty) 'notes': notes,
+        if (tableId != null) 'table_id': tableId,
         'items': items
-            .map((item) {
-              final taxable = item.unitPrice * item.quantity - item.discountAmount;
-              final itemTax = item.taxType == 'inclusive'
-                  ? (item.taxPercentage > 0
-                      ? taxable * item.taxPercentage / (100 + item.taxPercentage)
-                      : 0.0)
-                  : taxable * item.taxPercentage / 100;
-              return {
-                'product_id': item.productId,
-                'product_name': item.productName,
-                'quantity': item.quantity,
-                'unit_price': item.unitPrice,
-                'tax_percentage': item.taxPercentage,
-                'tax_amount': itemTax,
-                'discount_amount': item.discountAmount,
-                'total': item.lineTotal,
-              };
-            })
+            .map((item) => {
+                  'product_id': item.productId,
+                  'quantity': item.quantity,
+                  'unit_price': item.unitPrice,
+                  // per-item discount sent as %; global discount handled at invoice level
+                  'discount_percentage': item.discountAmount > 0 &&
+                          item.unitPrice * item.quantity > 0
+                      ? item.discountAmount /
+                          (item.unitPrice * item.quantity) *
+                          100
+                      : 0.0,
+                })
+            .toList(),
+      };
+
+  Map<String, dynamic> toKotPayload() => {
+        if (tableId != null) 'table_id': tableId,
+        if (notes != null && notes!.isNotEmpty) 'notes': notes,
+        'items': items
+            .map((item) => {
+                  'product_id': item.productId,
+                  'product_name': item.productName,
+                  'quantity': item.quantity,
+                })
             .toList(),
       };
 }

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../core/models/customer_model.dart';
 import '../../core/models/product_model.dart';
+import '../../core/providers/business_provider.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/category_provider.dart';
+import '../../core/providers/kot_provider.dart';
 import '../../core/providers/product_provider.dart';
+import '../../core/services/api_service.dart';
 import '../../core/widgets/currency_text.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/shimmer_list.dart';
@@ -48,30 +52,60 @@ class _PosScreenState extends ConsumerState<PosScreen> {
     );
   }
 
+  Future<void> _sendKot() async {
+    final cart = ref.read(cartProvider);
+    if (cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cart is empty')),
+      );
+      return;
+    }
+    try {
+      await ref.read(kotProvider.notifier).create(cart.toKotPayload());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('KOT sent to kitchen'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final productsAsync = ref.watch(productProvider);
+    final kotEnabled = ref.watch(kotEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('POS Billing'),
         actions: [
+          if (kotEnabled)
+            IconButton(
+              icon: const Icon(Icons.restaurant_menu),
+              tooltip: 'Send KOT',
+              onPressed: _sendKot,
+            ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             onPressed: () => setState(() => _scanning = !_scanning),
           ),
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.pause_circle_outline),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const HeldInvoicesScreen()),
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.pause_circle_outline),
+            tooltip: 'Held invoices',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HeldInvoicesScreen()),
+            ),
           ),
         ],
       ),
@@ -356,36 +390,188 @@ class _CartBar extends ConsumerWidget {
   final CartState cart;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Container(
-        color: Theme.of(context).colorScheme.primary,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('${cart.itemCount} item(s)',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                CurrencyText(cart.total,
-                    bold: true,
-                    color: Colors.white,
-                    style: const TextStyle(fontSize: 18)),
-              ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      color: primary,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Customer row
+          InkWell(
+            onTap: () => _showCustomerSearch(context, ref),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(children: [
+                const Icon(Icons.person_outline,
+                    color: Colors.white70, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: cart.customer != null
+                      ? Text(cart.customer!.name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500))
+                      : const Text('Add customer (optional)',
+                          style: TextStyle(
+                              color: Colors.white60, fontSize: 12)),
+                ),
+                if (cart.customer != null)
+                  GestureDetector(
+                    onTap: () =>
+                        ref.read(cartProvider.notifier).setCustomer(null),
+                    child: const Icon(Icons.close,
+                        color: Colors.white60, size: 16),
+                  )
+                else
+                  const Icon(Icons.add, color: Colors.white60, size: 16),
+              ]),
             ),
-            const Spacer(),
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PaymentScreen()),
+          ),
+          // Total + checkout row
+          Padding(
+            padding:
+                const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${cart.itemCount} item(s)',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12)),
+                  CurrencyText(cart.total,
+                      bold: true,
+                      color: Colors.white,
+                      style: const TextStyle(fontSize: 18)),
+                ],
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Theme.of(context).colorScheme.primary,
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PaymentScreen()),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: primary,
+                ),
+                child: const Text('Checkout →'),
               ),
-              child: const Text('Checkout →'),
-            ),
-          ],
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomerSearch(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _CustomerSearchSheet(
+        onSelect: (c) => ref.read(cartProvider.notifier).setCustomer(c),
+      ),
+    );
+  }
+}
+
+// ── Inline customer search sheet (also used from PaymentScreen) ───────────────
+class _CustomerSearchSheet extends StatefulWidget {
+  const _CustomerSearchSheet({required this.onSelect});
+  final void Function(CustomerModel) onSelect;
+
+  @override
+  State<_CustomerSearchSheet> createState() => _CustomerSearchSheetState();
+}
+
+class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
+  final _ctrl = TextEditingController();
+  List<CustomerModel> _results = [];
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String q) async {
+    if (q.length < 2) {
+      setState(() => _results = []);
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final list = await ApiService.getList('/customers',
+          queryParameters: {'search': q, 'per_page': '15'});
+      if (mounted) {
+        setState(() => _results = list
+            .map((e) =>
+                CustomerModel.fromJson(e as Map<String, dynamic>))
+            .toList());
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(children: [
+            const Text('Select Customer',
+                style:
+                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context)),
+          ]),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Search by name or phone...',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: _search,
+          ),
+          const SizedBox(height: 8),
+          if (_loading)
+            const Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator())
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              itemCount: _results.length,
+              itemBuilder: (_, i) {
+                final c = _results[i];
+                return ListTile(
+                  leading: CircleAvatar(child: Text(c.name[0])),
+                  title: Text(c.name),
+                  subtitle: Text(c.phone ?? c.email ?? ''),
+                  onTap: () {
+                    widget.onSelect(c);
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+        ]),
       );
 }
