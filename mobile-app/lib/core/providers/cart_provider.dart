@@ -142,30 +142,46 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 extension CartStatePayload on CartState {
-  // Builds the POST /invoices payload. payment_mode and payment_status are
-  // added by the caller (payment screen), not here.
-  Map<String, dynamic> toInvoicePayload({double extraDiscountAmount = 0}) => {
-        'customer_id': customer?.id,
-        'invoice_type': 'retail_invoice',
-        if (discountAmount + extraDiscountAmount > 0)
-          'discount_amount': discountAmount + extraDiscountAmount,
-        if (notes != null && notes!.isNotEmpty) 'notes': notes,
-        if (tableId != null) 'table_id': tableId,
-        'items': items
-            .map((item) => {
-                  'product_id': item.productId,
-                  'quantity': item.quantity,
-                  'unit_price': item.unitPrice,
-                  // per-item discount sent as %; global discount handled at invoice level
-                  'discount_percentage': item.discountAmount > 0 &&
-                          item.unitPrice * item.quantity > 0
-                      ? item.discountAmount /
-                          (item.unitPrice * item.quantity) *
-                          100
-                      : 0.0,
-                })
-            .toList(),
-      };
+  // Builds the POST /invoices payload matching the web POS exactly.
+  // discountPct is the global discount % from the payment screen (0-100).
+  // payment_mode and payment_status are added by the caller.
+  Map<String, dynamic> toInvoicePayload({double discountPct = 0}) {
+    final rawSubtotal =
+        items.fold(0.0, (s, i) => s + i.unitPrice * i.quantity);
+    final discountAmount = rawSubtotal * discountPct / 100;
+
+    // Tax computed with discount applied before tax — identical to web formula
+    final taxAmount = items.fold(0.0, (sum, item) {
+      final base = item.unitPrice * item.quantity;
+      final taxable = base * (1 - discountPct / 100);
+      if (item.taxType == 'inclusive') {
+        return item.taxPercentage > 0
+            ? sum + taxable * item.taxPercentage / (100 + item.taxPercentage)
+            : sum;
+      }
+      return sum + taxable * item.taxPercentage / 100;
+    });
+
+    return {
+      'customer_id': customer?.id,
+      'invoice_type': 'retail_invoice',
+      if (discountAmount > 0) 'discount_amount': discountAmount,
+      'tax_amount': taxAmount,
+      if (notes != null && notes!.isNotEmpty) 'notes': notes,
+      if (tableId != null) 'table_id': tableId,
+      // Every item gets the same global discount % — exactly as web POS does.
+      // BillingService uses this to reduce the taxable base per item before
+      // calculating GST, so tax is correct on the discounted amount.
+      'items': items
+          .map((item) => {
+                'product_id': item.productId,
+                'quantity': item.quantity,
+                'unit_price': item.unitPrice,
+                'discount_percentage': discountPct,
+              })
+          .toList(),
+    };
+  }
 
   Map<String, dynamic> toKotPayload() => {
         if (tableId != null) 'table_id': tableId,

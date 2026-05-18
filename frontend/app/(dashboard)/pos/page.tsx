@@ -200,9 +200,11 @@ export default function POSPage() {
   // --- Invoice mutations ---
   const createInvoiceMutation = useMutation({
     mutationFn: async (status: 'paid' | 'hold') => {
+      // 'split' is not in the backend enum (cash,card,upi,credit,mixed)
+      const backendMode = paymentMode === 'split' ? 'mixed' : paymentMode;
       const payload = {
         customer_id: selectedCustomer?.id ?? null,
-        payment_mode: paymentMode,
+        payment_mode: backendMode,
         payment_status: status === 'paid' ? 'paid' : 'hold',
         discount_amount: discountAmount,
         tax_amount: taxAmount,
@@ -211,7 +213,6 @@ export default function POSPage() {
           quantity: item.quantity,
           unit_price: item.price,
           discount_percentage: discountPct,
-          // BillingService calculates per-item tax from product.gst_percentage
         })),
       };
       const res = await api.post('/invoices', payload);

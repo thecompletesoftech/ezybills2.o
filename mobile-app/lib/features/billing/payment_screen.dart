@@ -50,10 +50,25 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   double _discountAmt(CartState cart) =>
       _rawSubtotal(cart) * _discountPct / 100;
 
-  double _grandTotal(CartState cart) =>
-      cart.items.fold(0.0, (s, i) => s + i.lineTotal) - _discountAmt(cart);
+  // Apply discount BEFORE tax — identical to the web POS formula.
+  // taxableBase = price * qty * (1 - discPct/100), then add/extract GST.
+  double _grandTotal(CartState cart) => cart.items.fold(0, (sum, item) {
+        final base = item.unitPrice * item.quantity;
+        final taxable = base * (1 - _discountPct / 100);
+        if (item.taxType == 'inclusive') return sum + taxable;
+        return sum + taxable + taxable * item.taxPercentage / 100;
+      });
 
-  double _taxDisplay(CartState cart) => cart.taxTotal;
+  double _taxDisplay(CartState cart) => cart.items.fold(0, (sum, item) {
+        final base = item.unitPrice * item.quantity;
+        final taxable = base * (1 - _discountPct / 100);
+        if (item.taxType == 'inclusive') {
+          return item.taxPercentage > 0
+              ? sum + taxable * item.taxPercentage / (100 + item.taxPercentage)
+              : sum;
+        }
+        return sum + taxable * item.taxPercentage / 100;
+      });
 
   Future<void> _submit({required String status}) async {
     if (_loading) return;
@@ -69,9 +84,11 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
     setState(() => _loading = true);
     try {
+      // 'split' is not in the backend enum (cash,card,upi,credit,mixed)
+      final backendMode = _method == 'split' ? 'mixed' : _method;
       final payload = {
-        ...cart.toInvoicePayload(extraDiscountAmount: _discountAmt(cart) - cart.discountAmount),
-        'payment_mode': _method,
+        ...cart.toInvoicePayload(discountPct: _discountPct),
+        'payment_mode': backendMode,
         'payment_status': status,
       };
 
