@@ -2,7 +2,7 @@
 class AppConfig {
   // API Configuration
   // Use 10.0.2.2 for Android emulator (maps to host machine localhost)
-  static const String apiBaseUrl = 'http://10.0.2.2:8000/api/v1';
+  static const String apiBaseUrl = 'http://192.168.29.167:8000/api/v1';
   static const int apiTimeoutDuration = 30; // seconds
   static const int apiRetryAttempts = 3;
 
