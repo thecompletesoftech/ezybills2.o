@@ -253,6 +253,31 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
                       fontWeight: pw.FontWeight.bold)),
             ],
           ),
+          if (_printUpiQr && _upiId != null && _upiId!.isNotEmpty) ...[
+            pw.Divider(),
+            pw.Center(
+              child: pw.Text('Pay via UPI',
+                  style: pw.TextStyle(
+                      fontSize: isA4 ? 11 : 9,
+                      fontWeight: pw.FontWeight.bold)),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Center(
+              child: pw.BarcodeWidget(
+                barcode: pw.Barcode.qrCode(),
+                data: 'upi://pay?pa=${Uri.encodeComponent(_upiId!)}'
+                    '&pn=${Uri.encodeComponent(business?.name ?? "EzyBills")}'
+                    '&am=${invoice.totalAmount.toStringAsFixed(2)}&cu=INR',
+                width: isA4 ? 100 : 72,
+                height: isA4 ? 100 : 72,
+              ),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Center(
+              child: pw.Text(_upiId!,
+                  style: pw.TextStyle(fontSize: isA4 ? 9 : 7)),
+            ),
+          ],
           if (printFooter) ...[
             pw.Divider(),
             pw.Center(
